@@ -1,6 +1,6 @@
 <?php
 /**
- * Classe principal do plugin Sicoob Payment
+ * Principal classe do plugin Sicoob Payment
  *
  * @package SicoobPayment
  */
@@ -11,42 +11,31 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-/**
- * Classe principal do plugin
- */
 class SicoobPayment {
     /**
-     * Instância única da classe
-     *
      * @var SicoobPayment
      */
     private static $instance = null;
-
-    /**
-     * Construtor privado para implementar o padrão Singleton
-     */
+    
     private function __construct() {
         // Inicialização privada
     }
 
     /**
-     * Obtém a instância única da classe
-     *
      * @return SicoobPayment
      */
-    public static function get_instance() {
+    public static function get_instance(): self {
         if (null === self::$instance) {
             self::$instance = new self();
         }
+
         return self::$instance;
     }
 
     /**
-     * Inicializa o plugin
-     *
      * @return void
      */
-    public function init() {
+    public function init(): void {
         // Carrega as traduções
         $this->load_plugin_textdomain();
 
@@ -55,11 +44,9 @@ class SicoobPayment {
     }
 
     /**
-     * Carrega as traduções do plugin
-     *
      * @return void
      */
-    private function load_plugin_textdomain() {
+    private function load_plugin_textdomain(): void {
         load_plugin_textdomain(
             'sicoob-payment',
             false,
@@ -68,11 +55,9 @@ class SicoobPayment {
     }
 
     /**
-     * Inicializa os hooks do plugin
-     *
      * @return void
      */
-    private function init_hooks() {
+    private function init_hooks(): void {
         // Aqui serão adicionados os hooks do plugin
     }
 } 

@@ -1,11 +1,11 @@
 <?php
 /**
  * Plugin Name: Sicoob Payment
- * Plugin URI: https://sicoob.com.br
+ * Plugin URI: https://github.com/gabrielphilipes/sicoob-payment-woocommerce
  * Description: Integração de pagamentos via boleto e PIX para WooCommerce
  * Version: 1.0.0
- * Author: Sicoob
- * Author URI: https://sicoob.com.br
+ * Author: Gabriel Philipe Silva
+ * Author URI: https://philipe.dev
  * Text Domain: sicoob-payment
  * Domain Path: /languages
  * Requires at least: 5.8
@@ -48,7 +48,6 @@ add_action(
     }
 );
 
-// Carrega o autoloader do Composer
 if (file_exists(SICOOB_PAYMENT_PLUGIN_DIR . 'vendor/autoload.php')) {
     require_once SICOOB_PAYMENT_PLUGIN_DIR . 'vendor/autoload.php';
 }
