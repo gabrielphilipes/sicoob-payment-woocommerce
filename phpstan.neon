@@ -1,0 +1,9 @@
+parameters:
+    level: 5
+    paths:
+        - includes
+    excludePaths:
+        - vendor/*
+    ignoreErrors:
+        - '#Call to an undefined function [a-zA-Z0-9\\_]+\(\)#'
+        - '#Call to an undefined method [a-zA-Z0-9\\_]+::[a-zA-Z0-9\\_]+\(\)#' 
