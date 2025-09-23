@@ -54,9 +54,12 @@ if (file_exists(SICOOB_PAYMENT_PLUGIN_DIR . 'vendor/autoload.php')) {
 
 // Inicializa o plugin
 function sicoob_payment_init() {
-    require_once SICOOB_PAYMENT_PLUGIN_DIR . '/includes/SicoobPayment.php';
+    require_once SICOOB_PAYMENT_PLUGIN_DIR . '/includes/class-wc-sicoob-payment.php';
+    require_once SICOOB_PAYMENT_PLUGIN_DIR . '/includes/class-wc-sicoob-payment-admin.php';
+    require_once SICOOB_PAYMENT_PLUGIN_DIR . '/includes/class-wc-sicoob-pix-gateway.php';
+    require_once SICOOB_PAYMENT_PLUGIN_DIR . '/includes/class-wc-sicoob-boleto-gateway.php';
 
-    $plugin = \SicoobPayment\SicoobPayment::get_instance();
+    $plugin = WC_Sicoob_Payment::get_instance();
     $plugin->init();
 }
 add_action('plugins_loaded', 'sicoob_payment_init'); 

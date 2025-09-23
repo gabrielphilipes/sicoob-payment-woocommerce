@@ -58,6 +58,11 @@ class WC_Sicoob_Payment {
     private function init_hooks(): void {
         // Register payment gateways
         add_filter('woocommerce_payment_gateways', array($this, 'add_payment_gateways'));
+
+        // Initialize admin functionality
+        if (is_admin()) {
+            new WC_Sicoob_Payment_Admin();
+        }
     }
 
     /**
