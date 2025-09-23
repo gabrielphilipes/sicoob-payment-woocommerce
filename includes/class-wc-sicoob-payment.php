@@ -1,28 +1,26 @@
 <?php
 /**
- * Principal classe do plugin Sicoob Payment
+ * Main Sicoob Payment Plugin Class
  *
  * @package SicoobPayment
  */
-
-namespace SicoobPayment;
 
 if (!defined('ABSPATH')) {
     exit;
 }
 
-class SicoobPayment {
+class WC_Sicoob_Payment {
     /**
-     * @var SicoobPayment
+     * @var WC_Sicoob_Payment
      */
     private static $instance = null;
     
     private function __construct() {
-        // Inicialização privada
+        // Private initialization
     }
 
     /**
-     * @return SicoobPayment
+     * @return WC_Sicoob_Payment
      */
     public static function get_instance(): self {
         if (null === self::$instance) {
@@ -36,10 +34,10 @@ class SicoobPayment {
      * @return void
      */
     public function init(): void {
-        // Carrega as traduções
+        // Load translations
         $this->load_plugin_textdomain();
 
-        // Inicializa os hooks do plugin
+        // Initialize plugin hooks
         $this->init_hooks();
     }
 
@@ -58,6 +56,20 @@ class SicoobPayment {
      * @return void
      */
     private function init_hooks(): void {
-        // Aqui serão adicionados os hooks do plugin
+        // Register payment gateways
+        add_filter('woocommerce_payment_gateways', array($this, 'add_payment_gateways'));
     }
-} 
+
+    /**
+     * Add payment gateways to WooCommerce
+     *
+     * @param array $gateways List of existing gateways
+     * @return array
+     */
+    public function add_payment_gateways($gateways): array {
+        $gateways[] = 'WC_Sicoob_Pix_Gateway';
+        $gateways[] = 'WC_Sicoob_Boleto_Gateway';
+        
+        return $gateways;
+    }
+}
