@@ -1,0 +1,248 @@
+/**
+ * Sicoob Payment Admin Styles
+ *
+ * @package SicoobPayment
+ */
+
+/* Container principal do admin */
+.sicoob-payment-admin {
+  max-width: 1200px;
+  margin: 20px 0;
+}
+
+/* Bloco de configurações */
+.sicoob-config-block {
+  background: #fff;
+  border: 1px solid #ccd0d4;
+  border-radius: 4px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+  margin: 20px 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Cabeçalho do bloco */
+.sicoob-config-block-header {
+  background: #f8f9fa;
+  border-bottom: 1px solid #ccd0d4;
+  padding: 15px 20px;
+  margin: 0;
+}
+
+.sicoob-config-block-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1d2327;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sicoob-config-block-header .dashicons {
+  color: #2271b1;
+  font-size: 18px;
+}
+
+/* Conteúdo do bloco */
+.sicoob-config-block-content {
+  padding: 20px;
+}
+
+/* Formulário de configurações */
+.sicoob-config-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Campo de configuração */
+.sicoob-config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sicoob-config-field label {
+  font-weight: 600;
+  color: #1d2327;
+  font-size: 14px;
+}
+
+.sicoob-config-field-description {
+  color: #646970;
+  font-size: 13px;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+
+/* Checkbox customizado */
+.sicoob-checkbox-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.sicoob-checkbox-wrapper input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.sicoob-checkbox-wrapper label {
+  cursor: pointer;
+  font-weight: 500;
+  color: #1d2327;
+  margin: 0;
+}
+
+/* Status do checkbox */
+.sicoob-checkbox-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 500;
+  margin-left: 10px;
+}
+
+.sicoob-checkbox-status.enabled {
+  background: #d1e7dd;
+  color: #0f5132;
+}
+
+.sicoob-checkbox-status.disabled {
+  background: #f8d7da;
+  color: #842029;
+}
+
+.sicoob-checkbox-status .dashicons {
+  font-size: 14px;
+}
+
+/* Botões */
+.sicoob-config-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.sicoob-btn {
+  padding: 8px 16px;
+  border: 1px solid;
+  border-radius: 3px;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sicoob-btn-primary {
+  background: #2271b1;
+  border-color: #2271b1;
+  color: #fff;
+}
+
+.sicoob-btn-primary:hover {
+  background: #135e96;
+  border-color: #135e96;
+  color: #fff;
+}
+
+.sicoob-btn-secondary {
+  background: #f6f7f7;
+  border-color: #dcdcde;
+  color: #2c3338;
+}
+
+.sicoob-btn-secondary:hover {
+  background: #f0f0f1;
+  border-color: #8c8f94;
+  color: #2c3338;
+}
+
+/* Mensagens de feedback */
+.sicoob-notice {
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin: 15px 0;
+  border-left: 4px solid;
+}
+
+.sicoob-notice.success {
+  background: #d1e7dd;
+  border-left-color: #0f5132;
+  color: #0f5132;
+}
+
+.sicoob-notice.error {
+  background: #f8d7da;
+  border-left-color: #842029;
+  color: #842029;
+}
+
+.sicoob-notice.warning {
+  background: #fff3cd;
+  border-left-color: #664d03;
+  color: #664d03;
+}
+
+.sicoob-notice.info {
+  background: #d1ecf1;
+  border-left-color: #055160;
+  color: #055160;
+}
+
+/* Responsividade */
+@media (max-width: 782px) {
+  .sicoob-config-block-content {
+    padding: 15px;
+  }
+
+  .sicoob-config-actions {
+    flex-direction: column;
+  }
+
+  .sicoob-btn {
+    justify-content: center;
+  }
+}
+
+/* Estados de loading */
+.sicoob-loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.sicoob-loading::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #2271b1;
+  border-radius: 50%;
+  animation: sicoob-spin 1s linear infinite;
+}
+
+@keyframes sicoob-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}

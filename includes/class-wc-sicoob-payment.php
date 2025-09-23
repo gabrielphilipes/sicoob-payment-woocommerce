@@ -77,4 +77,20 @@ class WC_Sicoob_Payment {
         
         return $gateways;
     }
+
+    /**
+     * Log message using WooCommerce logger
+     *
+     * @param string $message Log message
+     * @param string $level Log level (info, warning, error)
+     * @return void
+     */
+    public static function log_message($message, $level = 'info'): void {
+        $config = get_option('sicoob_payment_config', array());
+        
+        if (isset($config['enable_logs']) && $config['enable_logs'] === 'yes') {
+            $logger = wc_get_logger();
+            $logger->log($level, $message, array('source' => 'sicoob-payment'));
+        }
+    }
 }
