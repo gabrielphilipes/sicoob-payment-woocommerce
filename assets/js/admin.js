@@ -248,6 +248,99 @@ jQuery(document).ready(function ($) {
     testApiToken("boleto");
   });
 
+  // Validação e contador para descrição do PIX
+  function initPixDescriptionValidation() {
+    var $pixDescriptionField = $(
+      'input[name="woocommerce_sicoob_pix_pix_description"]'
+    );
+
+    if ($pixDescriptionField.length === 0) {
+      return;
+    }
+
+    // Criar contador de caracteres
+    var $counter = $(
+      '<div class="sicoob-char-counter" style="font-size: 12px; color: #666; margin-top: 5px;"></div>'
+    );
+    $pixDescriptionField.after($counter);
+
+    // Função para atualizar contador
+    function updateCounter() {
+      var currentLength = $pixDescriptionField.val().length;
+      var maxLength = 40;
+      var remaining = maxLength - currentLength;
+
+      if (remaining < 0) {
+        $counter.html(
+          '<span style="color: #d63638;">' +
+            currentLength +
+            "/" +
+            maxLength +
+            " caracteres (limite excedido)</span>"
+        );
+        $pixDescriptionField.addClass("sicoob-field-error");
+      } else if (remaining <= 5) {
+        $counter.html(
+          '<span style="color: #dba617;">' +
+            currentLength +
+            "/" +
+            maxLength +
+            " caracteres restantes</span>"
+        );
+        $pixDescriptionField.removeClass("sicoob-field-error");
+      } else {
+        $counter.html(
+          '<span style="color: #00a32a;">' +
+            currentLength +
+            "/" +
+            maxLength +
+            " caracteres</span>"
+        );
+        $pixDescriptionField.removeClass("sicoob-field-error");
+      }
+    }
+
+    // Atualizar contador ao digitar
+    $pixDescriptionField.on("input keyup paste", function () {
+      var value = $(this).val();
+
+      // Limitar a 40 caracteres
+      if (value.length > 40) {
+        $(this).val(value.substring(0, 40));
+      }
+
+      updateCounter();
+    });
+
+    // Validação no envio do formulário
+    $('form[name="mainform"]').on("submit", function (e) {
+      var pixDescriptionValue = $pixDescriptionField.val();
+
+      if (pixDescriptionValue.length > 40) {
+        e.preventDefault();
+        alert("A descrição do PIX não pode ter mais de 40 caracteres.");
+        $pixDescriptionField.focus();
+        return false;
+      }
+    });
+
+    // Inicializar contador
+    updateCounter();
+  }
+
+  // Inicializar validação quando a página carregar
+  initPixDescriptionValidation();
+
+  // Reinicializar quando campos forem carregados dinamicamente
+  $(document).on("DOMNodeInserted", function (e) {
+    if (
+      $(e.target).find('input[name="woocommerce_sicoob_pix_pix_description"]')
+        .length > 0
+    ) {
+      setTimeout(initPixDescriptionValidation, 100);
+    }
+  });
+
   function testApiToken(scopeType) {
     var $btn = $("#test-" + scopeType + "-token");
     var $results = $("#api-test-results");

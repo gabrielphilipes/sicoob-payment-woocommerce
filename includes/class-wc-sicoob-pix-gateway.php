@@ -58,6 +58,27 @@ class WC_Sicoob_Pix_Gateway extends WC_Payment_Gateway {
                 'description' => __('Descrição a ser explicada para o cliente, antes de gerar o PIX.', 'sicoob-payment'),
                 'default' => __('Pague com PIX de forma rápida e segura através do Sicoob.', 'sicoob-payment'),
                 'desc_tip' => true,
+            ),
+            'pix_key' => array(
+                'title' => __('Chave PIX de destino', 'sicoob-payment'),
+                'type' => 'text',
+                'description' => __('Chave PIX cadastrada no Sicoob. Pode ser e-mail, CPF/CNPJ ou celular.', 'sicoob-payment'),
+                'default' => '',
+                'desc_tip' => true,
+                'custom_attributes' => array(
+                    'placeholder' => __('exemplo@email.com ou 11999999999 ou 12345678901', 'sicoob-payment')
+                )
+            ),
+            'pix_description' => array(
+                'title' => __('Descrição do PIX', 'sicoob-payment'),
+                'type' => 'text',
+                'description' => __('Descrição que aparecerá no PIX (máximo 40 caracteres).', 'sicoob-payment'),
+                'default' => __('Compra WooCommerce', 'sicoob-payment'),
+                'desc_tip' => true,
+                'custom_attributes' => array(
+                    'maxlength' => '40',
+                    'data-counter' => 'true'
+                )
             )
         );
     }
@@ -98,6 +119,14 @@ class WC_Sicoob_Pix_Gateway extends WC_Payment_Gateway {
      */
     public function is_available() {
         if ($this->enabled === 'no') {
+            return false;
+        }
+
+        // Check if required PIX fields are configured
+        $pix_key = $this->get_option('pix_key');
+        $pix_description = $this->get_option('pix_description');
+
+        if (empty($pix_key) || empty($pix_description)) {
             return false;
         }
 

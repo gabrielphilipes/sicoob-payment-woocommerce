@@ -609,3 +609,73 @@
     justify-content: center;
   }
 }
+
+/* Estilos para validação de campos PIX */
+.sicoob-char-counter {
+  font-size: 12px;
+  color: #666;
+  margin-top: 5px;
+  padding: 4px 8px;
+  background: #f8f9fa;
+  border-radius: 3px;
+  border: 1px solid #e1e5e9;
+  display: inline-block;
+  min-width: 120px;
+  text-align: center;
+}
+
+.sicoob-char-counter span {
+  font-weight: 500;
+}
+
+.sicoob-field-error {
+  border-color: #d63638 !important;
+  box-shadow: 0 0 0 1px #d63638 !important;
+}
+
+.sicoob-field-error:focus {
+  border-color: #d63638 !important;
+  box-shadow: 0 0 0 1px #d63638 !important;
+}
+
+/* Estilos para campos de configuração PIX */
+.woocommerce table.form-table .sicoob-pix-field {
+  position: relative;
+}
+
+.woocommerce table.form-table .sicoob-pix-field input[type="text"] {
+  width: 100%;
+  max-width: 400px;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.woocommerce table.form-table .sicoob-pix-field input[type="text"]:focus {
+  border-color: #2271b1;
+  outline: none;
+  box-shadow: 0 0 0 1px #2271b1;
+}
+
+.woocommerce
+  table.form-table
+  .sicoob-pix-field
+  input[type="text"]::placeholder {
+  color: #999;
+  font-style: italic;
+}
+
+/* Responsividade para campos PIX */
+@media (max-width: 782px) {
+  .woocommerce table.form-table .sicoob-pix-field input[type="text"] {
+    max-width: 100%;
+  }
+
+  .sicoob-char-counter {
+    display: block;
+    margin-top: 8px;
+    text-align: left;
+  }
+}

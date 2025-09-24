@@ -42,31 +42,59 @@ class WC_Sicoob_Payment_Admin {
      * Enqueue admin scripts and styles
      */
     public function enqueue_admin_scripts($hook) {
-        if ('woocommerce_page_sicoob-payment' !== $hook) {
-            return;
+        // Load assets in plugin settings pages
+        if ('woocommerce_page_sicoob-payment' === $hook) {
+            wp_enqueue_style(
+                'sicoob-payment-admin',
+                SICOOB_PAYMENT_PLUGIN_URL . 'assets/css/admin.css',
+                array(),
+                SICOOB_PAYMENT_VERSION
+            );
+
+            wp_enqueue_script(
+                'sicoob-payment-admin',
+                SICOOB_PAYMENT_PLUGIN_URL . 'assets/js/admin.js',
+                array('jquery'),
+                SICOOB_PAYMENT_VERSION,
+                true
+            );
+
+            // Localizar script com parâmetros AJAX
+            wp_localize_script('sicoob-payment-admin', 'sicoob_payment_params', array(
+                'ajax_url' => admin_url('admin-ajax.php'),
+                'nonce' => wp_create_nonce('sicoob_remove_certificate'),
+                'test_api_nonce' => wp_create_nonce('sicoob_test_api'),
+            ));
         }
 
-        wp_enqueue_style(
-            'sicoob-payment-admin',
-            SICOOB_PAYMENT_PLUGIN_URL . 'assets/css/admin.css',
-            array(),
-            SICOOB_PAYMENT_VERSION
-        );
+        // Load assets in plugin settings pages: PIX and Boleto
+        if (strpos($hook, 'wc-settings') !== false && isset($_GET['section'])) {
+            $section = sanitize_text_field($_GET['section']);
+            
+            if (in_array($section, array('sicoob_pix', 'sicoob_boleto'))) {
+                wp_enqueue_style(
+                    'sicoob-payment-admin',
+                    SICOOB_PAYMENT_PLUGIN_URL . 'assets/css/admin.css',
+                    array(),
+                    SICOOB_PAYMENT_VERSION
+                );
 
-        wp_enqueue_script(
-            'sicoob-payment-admin',
-            SICOOB_PAYMENT_PLUGIN_URL . 'assets/js/admin.js',
-            array('jquery'),
-            SICOOB_PAYMENT_VERSION,
-            true
-        );
+                wp_enqueue_script(
+                    'sicoob-payment-admin',
+                    SICOOB_PAYMENT_PLUGIN_URL . 'assets/js/admin.js',
+                    array('jquery'),
+                    SICOOB_PAYMENT_VERSION,
+                    true
+                );
 
-        // Localizar script com parâmetros AJAX
-        wp_localize_script('sicoob-payment-admin', 'sicoob_payment_params', array(
-            'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('sicoob_remove_certificate'),
-            'test_api_nonce' => wp_create_nonce('sicoob_test_api'),
-        ));
+                // Localizar script com parâmetros AJAX
+                wp_localize_script('sicoob-payment-admin', 'sicoob_payment_params', array(
+                    'ajax_url' => admin_url('admin-ajax.php'),
+                    'nonce' => wp_create_nonce('sicoob_remove_certificate'),
+                    'test_api_nonce' => wp_create_nonce('sicoob_test_api'),
+                ));
+            }
+        }
     }
 
     /**
