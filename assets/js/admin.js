@@ -71,4 +71,170 @@ jQuery(document).ready(function ($) {
         );
     }
   });
+
+  // Botão para alterar dados sensíveis
+  $(".sicoob-change-data-btn").on("click", function (e) {
+    e.preventDefault();
+    var $btn = $(this);
+    var $input = $("#client_id");
+
+    // Remover readonly e limpar campo
+    $input.removeAttr("readonly").val("").focus();
+
+    // Atualizar placeholder
+    $input.attr("placeholder", "Digite o novo ID do Cliente");
+
+    // Esconder botão
+    $btn.hide();
+  });
+
+  // Mostrar botão quando campo estiver vazio
+  $("#client_id").on("blur", function () {
+    var $input = $(this);
+    var $btn = $(".sicoob-change-data-btn");
+
+    if ($input.val().length === 0 && $input.attr("readonly")) {
+      $btn.show();
+    }
+  });
+
+  // Validação de arquivo de certificado em tempo real
+  $("#certificate_file").on("change", function () {
+    var $input = $(this);
+    var $validation = $("#certificate-validation");
+    var $message = $validation.find(".sicoob-validation-message");
+    var file = this.files[0];
+
+    // Limpar validação anterior
+    $validation.hide().removeClass("valid invalid");
+
+    if (!file) {
+      return;
+    }
+
+    // Validar extensão
+    var allowedExtensions = ["pem", "crt", "key"];
+    var fileExtension = file.name.split(".").pop().toLowerCase();
+
+    if (!allowedExtensions.includes(fileExtension)) {
+      $validation.addClass("invalid").show();
+      $message.html(
+        '<span class="dashicons dashicons-warning"></span> Tipo de arquivo não permitido. Use apenas arquivos .PEM, .CRT ou .KEY.'
+      );
+      return;
+    }
+
+    // Validar tamanho (1MB)
+    if (file.size > 1024 * 1024) {
+      $validation.addClass("invalid").show();
+      $message.html(
+        '<span class="dashicons dashicons-warning"></span> Arquivo muito grande. Tamanho máximo: 1MB.'
+      );
+      return;
+    }
+
+    // Validar conteúdo do certificado
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var content = e.target.result;
+      var isValid = validateCertificateContent(content);
+
+      if (isValid) {
+        $validation.addClass("valid").show();
+        $message.html(
+          '<span class="dashicons dashicons-yes-alt"></span> Certificado válido detectado.'
+        );
+      } else {
+        $validation.addClass("invalid").show();
+        $message.html(
+          '<span class="dashicons dashicons-warning"></span> Arquivo de certificado inválido. Verifique se é um certificado válido do Sicoob.'
+        );
+      }
+    };
+
+    reader.readAsText(file);
+  });
+
+  // Função para validar conteúdo do certificado
+  function validateCertificateContent(content) {
+    var certificateHeaders = [
+      "-----BEGIN CERTIFICATE-----",
+      "-----BEGIN PRIVATE KEY-----",
+      "-----BEGIN RSA PRIVATE KEY-----",
+      "-----BEGIN ENCRYPTED PRIVATE KEY-----",
+    ];
+
+    for (var i = 0; i < certificateHeaders.length; i++) {
+      if (content.indexOf(certificateHeaders[i]) !== -1) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  // Feedback visual durante upload
+  $(".sicoob-config-form").on("submit", function (e) {
+    var $form = $(this);
+    var $fileInput = $("#certificate_file");
+    var $submitBtn = $form.find('button[type="submit"]');
+
+    // Se há arquivo selecionado, mostrar feedback
+    if ($fileInput[0].files.length > 0) {
+      $submitBtn.html(
+        '<span class="dashicons dashicons-upload"></span> Enviando certificado...'
+      );
+    }
+  });
+
+  // Remoção de certificado
+  $(".sicoob-remove-certificate-btn").on("click", function (e) {
+    e.preventDefault();
+
+    var $btn = $(this);
+    var certificatePath = $btn.data("certificate-path");
+
+    // Confirmação antes de remover
+    if (
+      !confirm(
+        "Tem certeza que deseja remover o certificado? Esta ação não pode ser desfeita."
+      )
+    ) {
+      return;
+    }
+
+    // Adicionar estado de loading
+    $btn.addClass("sicoob-loading").prop("disabled", true);
+    $btn.html('<span class="dashicons dashicons-update"></span> Removendo...');
+
+    // Fazer requisição AJAX
+    $.ajax({
+      url: ajaxurl,
+      type: "POST",
+      data: {
+        action: "sicoob_remove_certificate",
+        nonce: sicoob_payment_params.nonce,
+      },
+      success: function (response) {
+        if (response.success) {
+          // Recarregar a página para mostrar o estado atualizado
+          window.location.reload();
+        } else {
+          // Mostrar erro
+          alert("Erro ao remover certificado: " + response.data.message);
+          $btn.removeClass("sicoob-loading").prop("disabled", false);
+          $btn.html(
+            '<span class="dashicons dashicons-trash"></span> Remover Certificado'
+          );
+        }
+      },
+      error: function () {
+        alert("Erro na comunicação com o servidor.");
+        $btn.removeClass("sicoob-loading").prop("disabled", false);
+        $btn.html(
+          '<span class="dashicons dashicons-trash"></span> Remover Certificado'
+        );
+      },
+    });
+  });
 });

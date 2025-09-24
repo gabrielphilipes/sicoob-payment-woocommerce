@@ -93,4 +93,17 @@ class WC_Sicoob_Payment {
             $logger->log($level, $message, array('source' => 'sicoob-payment'));
         }
     }
+
+    /**
+     * Get authentication configuration
+     *
+     * @return array
+     */
+    public static function get_auth_config(): array {
+        $config = get_option('sicoob_payment_config', array());
+        return array(
+            'client_id' => isset($config['client_id']) ? $config['client_id'] : '',
+            'certificate_path' => isset($config['certificate_path']) ? $config['certificate_path'] : '',
+        );
+    }
 }

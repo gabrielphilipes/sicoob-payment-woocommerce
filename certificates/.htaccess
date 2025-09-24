@@ -1,0 +1,3 @@
+# Proteger diretório de certificados
+Order Deny,Allow
+Deny from all
