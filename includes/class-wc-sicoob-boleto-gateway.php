@@ -58,6 +58,105 @@ class WC_Sicoob_Boleto_Gateway extends WC_Payment_Gateway {
                 'description' => __('Descrição a ser explicada para o cliente, antes de gerar o boleto.', 'sicoob-payment'),
                 'default' => __('Pague com boleto bancário de forma segura através do Sicoob.', 'sicoob-payment'),
                 'desc_tip' => true,
+            ),
+            'account_number' => array(
+                'title' => __('Número da Conta Corrente', 'sicoob-payment'),
+                'type' => 'tel',
+                'description' => __('Número da conta corrente no Sicoob (somente números).', 'sicoob-payment'),
+                'default' => '',
+                'desc_tip' => true,
+                'custom_attributes' => array(
+                    'pattern' => '[0-9]*',
+                    'inputmode' => 'numeric'
+                )
+            ),
+            'contract_number' => array(
+                'title' => __('Número do Contrato', 'sicoob-payment'),
+                'type' => 'tel',
+                'description' => __('Número do contrato com o Sicoob (somente números).', 'sicoob-payment'),
+                'default' => '',
+                'desc_tip' => true,
+                'custom_attributes' => array(
+                    'pattern' => '[0-9]*',
+                    'inputmode' => 'numeric'
+                )
+            ),
+            'due_days' => array(
+                'title' => __('Dias para Vencimento', 'sicoob-payment'),
+                'type' => 'tel',
+                'description' => __('Número de dias para vencimento do boleto.', 'sicoob-payment'),
+                'default' => '3',
+                'desc_tip' => true,
+                'custom_attributes' => array(
+                    'pattern' => '[0-9]*',
+                    'inputmode' => 'numeric',
+                    'min' => '1',
+                    'max' => '30'
+                )
+            ),
+            'instructions_section' => array(
+                'title' => __('Instruções do Boleto', 'sicoob-payment'),
+                'type' => 'title',
+                'description' => __('Configure as instruções que aparecerão no boleto bancário.', 'sicoob-payment'),
+            ),
+            'instruction_1' => array(
+                'title' => __('Instrução 1', 'sicoob-payment'),
+                'type' => 'text',
+                'description' => __('Primeira linha de instrução (máximo 40 caracteres).', 'sicoob-payment'),
+                'default' => '',
+                'desc_tip' => true,
+                'custom_attributes' => array(
+                    'maxlength' => '40'
+                )
+            ),
+            'instruction_2' => array(
+                'title' => __('Instrução 2', 'sicoob-payment'),
+                'type' => 'text',
+                'description' => __('Segunda linha de instrução (máximo 40 caracteres).', 'sicoob-payment'),
+                'default' => '',
+                'desc_tip' => true,
+                'custom_attributes' => array(
+                    'maxlength' => '40'
+                )
+            ),
+            'instruction_3' => array(
+                'title' => __('Instrução 3', 'sicoob-payment'),
+                'type' => 'text',
+                'description' => __('Terceira linha de instrução (máximo 40 caracteres).', 'sicoob-payment'),
+                'default' => '',
+                'desc_tip' => true,
+                'custom_attributes' => array(
+                    'maxlength' => '40'
+                )
+            ),
+            'instruction_4' => array(
+                'title' => __('Instrução 4', 'sicoob-payment'),
+                'type' => 'text',
+                'description' => __('Quarta linha de instrução (máximo 40 caracteres).', 'sicoob-payment'),
+                'default' => '',
+                'desc_tip' => true,
+                'custom_attributes' => array(
+                    'maxlength' => '40'
+                )
+            ),
+            'instruction_5' => array(
+                'title' => __('Instrução 5', 'sicoob-payment'),
+                'type' => 'text',
+                'description' => __('Quinta linha de instrução (máximo 40 caracteres).', 'sicoob-payment'),
+                'default' => '',
+                'desc_tip' => true,
+                'custom_attributes' => array(
+                    'maxlength' => '40'
+                )
+            ),
+            'suggestions_button' => array(
+                'title' => __('Sugestões de Instruções', 'sicoob-payment'),
+                'type' => 'button',
+                'description' => __('Clique para inserir sugestões de instruções pré-definidas.', 'sicoob-payment'),
+                'class' => 'button button-secondary',
+                'custom_attributes' => array(
+                    'onclick' => 'sicoobInsertSuggestions()'
+                )
             )
         );
     }

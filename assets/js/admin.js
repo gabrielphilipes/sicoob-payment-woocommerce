@@ -333,8 +333,121 @@ jQuery(document).ready(function ($) {
     updateCounter();
   }
 
+  // Validação e contador para instruções do boleto
+  function initBoletoInstructionsValidation() {
+    // Função para atualizar contador (definida fora do loop)
+    function updateCounter($field, $counter) {
+      var currentLength = $field.val().length;
+      var maxLength = 40;
+      var remaining = maxLength - currentLength;
+
+      if (remaining < 0) {
+        $counter.html(
+          '<span style="color: #d63638;">' +
+            currentLength +
+            "/" +
+            maxLength +
+            " caracteres (limite excedido)</span>"
+        );
+        $field.addClass("sicoob-field-error");
+      } else if (remaining <= 5) {
+        $counter.html(
+          '<span style="color: #dba617;">' +
+            currentLength +
+            "/" +
+            maxLength +
+            " caracteres restantes</span>"
+        );
+        $field.removeClass("sicoob-field-error");
+      } else {
+        $counter.html(
+          '<span style="color: #00a32a;">' +
+            currentLength +
+            "/" +
+            maxLength +
+            " caracteres</span>"
+        );
+        $field.removeClass("sicoob-field-error");
+      }
+    }
+
+    // Aplicar validação para cada campo de instrução
+    for (var i = 1; i <= 5; i++) {
+      var $instructionField = $(
+        'input[name="woocommerce_sicoob_boleto_instruction_' + i + '"]'
+      );
+
+      if ($instructionField.length === 0) {
+        continue;
+      }
+
+      // Verificar se já tem contador (evitar duplicação)
+      if ($instructionField.siblings(".sicoob-char-counter").length > 0) {
+        continue;
+      }
+
+      // Criar contador de caracteres
+      var $counter = $(
+        '<div class="sicoob-char-counter" style="font-size: 12px; color: #666; margin-top: 5px;"></div>'
+      );
+      $instructionField.after($counter);
+
+      // Atualizar contador ao digitar
+      $instructionField.on("input keyup paste", function () {
+        var value = $(this).val();
+
+        // Limitar a 40 caracteres
+        if (value.length > 40) {
+          $(this).val(value.substring(0, 40));
+        }
+
+        // Encontrar o contador associado a este campo
+        var $associatedCounter = $(this).siblings(".sicoob-char-counter");
+        updateCounter($(this), $associatedCounter);
+      });
+
+      // Inicializar contador
+      updateCounter($instructionField, $counter);
+    }
+
+    // Validação no envio do formulário
+    $('form[name="mainform"]').on("submit", function (e) {
+      var hasErrors = false;
+      var firstErrorField = null;
+
+      for (var i = 1; i <= 5; i++) {
+        var $instructionField = $(
+          'input[name="woocommerce_sicoob_boleto_instruction_' + i + '"]'
+        );
+
+        if ($instructionField.length > 0) {
+          var value = $instructionField.val();
+
+          if (value.length > 40) {
+            hasErrors = true;
+            if (!firstErrorField) {
+              firstErrorField = $instructionField;
+            }
+          }
+        }
+      }
+
+      if (hasErrors) {
+        e.preventDefault();
+        alert(
+          "As instruções do boleto não podem ter mais de 40 caracteres cada."
+        );
+        if (firstErrorField) {
+          firstErrorField.focus();
+        }
+        return false;
+      }
+    });
+  }
+
   // Inicializar validação quando a página carregar
   initPixDescriptionValidation();
+  initBoletoInstructionsValidation();
 
   // Reinicializar quando campos forem carregados dinamicamente
   $(document).on("DOMNodeInserted", function (e) {
@@ -344,7 +457,50 @@ jQuery(document).ready(function ($) {
     ) {
       setTimeout(initPixDescriptionValidation, 100);
     }
+
+    if (
+      $(e.target).find('input[name*="woocommerce_sicoob_boleto_instruction_"]')
+        .length > 0
+    ) {
+      setTimeout(initBoletoInstructionsValidation, 100);
+    }
   });
+
+  // Função global para inserir sugestões de instruções do boleto
+  window.sicoobInsertSuggestions = function () {
+    var suggestions = [
+      "Não receber após o vencimento",
+      "Após vencimento, pagar apenas em nosso estabelecimento",
+      "Não aceitar após vencimento",
+      "Após vencimento, pagar apenas em nossa loja",
+      "Não receber após a data de vencimento",
+    ];
+
+    // Preencher os campos de instrução com as sugestões
+    for (var i = 1; i <= 5; i++) {
+      var fieldName = "woocommerce_sicoob_boleto_instruction_" + i;
+      var $field = $('input[name="' + fieldName + '"]');
+
+      if ($field.length > 0 && suggestions[i - 1]) {
+        $field.val(suggestions[i - 1]);
+
+        // Disparar evento de input para atualizar contadores se existirem
+        $field.trigger("input");
+      }
+    }
+
+    // Mostrar feedback visual
+    var $button = $('input[onclick="sicoobInsertSuggestions()"]');
+    var originalText = $button.val();
+
+    $button.val("✓ Sugestões inseridas!");
+    $button.addClass("button-primary");
+
+    setTimeout(function () {
+      $button.val(originalText);
+      $button.removeClass("button-primary");
+    }, 2000);
+  };
 
   function testApiToken(scopeType) {
     var $btn = $("#test-" + scopeType + "-token");
