@@ -1,0 +1,8 @@
+# Ignorar todos os arquivos de certificado
+# Estes arquivos contêm informações sensíveis e não devem ser versionados
+*
+
+# Manter apenas os arquivos de proteção
+!.htaccess
+!index.php
+!.gitignore
