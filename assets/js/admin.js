@@ -237,4 +237,112 @@ jQuery(document).ready(function ($) {
       },
     });
   });
+
+  // Teste da API - PIX Token
+  $("#test-pix-token").on("click", function () {
+    testApiToken("pix");
+  });
+
+  // Teste da API - Boleto Token
+  $("#test-boleto-token").on("click", function () {
+    testApiToken("boleto");
+  });
+
+  function testApiToken(scopeType) {
+    var $btn = $("#test-" + scopeType + "-token");
+    var $results = $("#api-test-results");
+    var $content = $("#api-response-content");
+
+    // Desabilitar botão e mostrar loading
+    $btn.addClass("sicoob-loading").prop("disabled", true);
+    $btn.html('<span class="dashicons dashicons-update"></span> Testando...');
+
+    // Fazer requisição AJAX
+    $.ajax({
+      url: sicoob_payment_params.ajax_url,
+      type: "POST",
+      data: {
+        action: "sicoob_test_api",
+        nonce: sicoob_payment_params.test_api_nonce,
+        scope_type: scopeType,
+      },
+      success: function (response) {
+        if (response.success) {
+          // Exibir resultado completo e bruto
+          var resultText = "=== TESTE DA API SICOOB ===\n";
+          resultText +=
+            "Tipo: " + response.data.scope_type.toUpperCase() + "\n";
+          resultText += "Scope utilizado: " + response.data.scope_used + "\n";
+          resultText += "Timestamp: " + response.data.timestamp + "\n";
+          resultText +=
+            "Status da requisição: " +
+            (response.data.result.success ? "SUCESSO" : "ERRO") +
+            "\n";
+          resultText += "Mensagem: " + response.data.result.message + "\n";
+
+          resultText += "\n=== INFORMAÇÕES DA REQUISIÇÃO ===\n";
+          resultText +=
+            "Endpoint: " + response.data.request_info.endpoint + "\n";
+          resultText += "Método: " + response.data.request_info.method + "\n";
+          resultText +=
+            "Client ID configurado: " +
+            (response.data.auth_config.client_id_configured ? "SIM" : "NÃO") +
+            "\n";
+          resultText +=
+            "Certificado existe: " +
+            (response.data.auth_config.certificate_exists ? "SIM" : "NÃO") +
+            "\n";
+          resultText +=
+            "Caminho do certificado: " +
+            response.data.auth_config.ssl_certificate +
+            "\n";
+
+          resultText += "\n=== HEADERS DA REQUISIÇÃO ===\n";
+          resultText +=
+            JSON.stringify(response.data.request_info.headers, null, 2) + "\n";
+
+          resultText += "\n=== BODY DA REQUISIÇÃO ===\n";
+          resultText +=
+            JSON.stringify(response.data.request_info.body, null, 2) + "\n";
+
+          resultText += "\n=== OPÇÕES cURL ===\n";
+          resultText +=
+            JSON.stringify(response.data.request_info.curl_options, null, 2) +
+            "\n";
+
+          resultText += "\n=== RESPOSTA COMPLETA DA API ===\n";
+          resultText += JSON.stringify(response.data.result, null, 2);
+          resultText += "\n\n=== RESPOSTA BRUTA COMPLETA ===\n";
+          resultText += JSON.stringify(response, null, 2);
+
+          $content.text(resultText);
+          $results.show();
+        } else {
+          $content.text("Erro: " + (response.data || "Erro desconhecido"));
+          $results.show();
+        }
+      },
+      error: function (xhr, status, error) {
+        var errorText = "Erro na comunicação com o servidor:\n";
+        errorText += "Status: " + status + "\n";
+        errorText += "Error: " + error + "\n";
+        errorText += "Response: " + xhr.responseText;
+        $content.text(errorText);
+        $results.show();
+      },
+      complete: function () {
+        // Reabilitar botão
+        $btn.removeClass("sicoob-loading").prop("disabled", false);
+        if (scopeType === "pix") {
+          $btn.html(
+            '<span class="dashicons dashicons-admin-network"></span> Testar Token PIX'
+          );
+        } else {
+          $btn.html(
+            '<span class="dashicons dashicons-admin-network"></span> Testar Token Boleto'
+          );
+        }
+      },
+    });
+  }
 });

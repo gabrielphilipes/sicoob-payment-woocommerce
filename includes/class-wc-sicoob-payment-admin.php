@@ -21,6 +21,7 @@ class WC_Sicoob_Payment_Admin {
         add_action('admin_post_sicoob_save_auth_config', array($this, 'save_auth_config'));
         add_action('admin_post_sicoob_remove_certificate', array($this, 'remove_certificate'));
         add_action('wp_ajax_sicoob_remove_certificate', array($this, 'ajax_remove_certificate'));
+        add_action('wp_ajax_sicoob_test_api', array($this, 'ajax_test_api'));
     }
 
     /**
@@ -64,6 +65,7 @@ class WC_Sicoob_Payment_Admin {
         wp_localize_script('sicoob-payment-admin', 'sicoob_payment_params', array(
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('sicoob_remove_certificate'),
+            'test_api_nonce' => wp_create_nonce('sicoob_test_api'),
         ));
     }
 
@@ -367,6 +369,73 @@ class WC_Sicoob_Payment_Admin {
         );
     }
 
+    /**
+     * Test API connection (AJAX action)
+     */
+    public function ajax_test_api() {
+        // Verificar nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'sicoob_test_api')) {
+            wp_die(__('Ação não autorizada.', 'sicoob-payment'));
+        }
+
+        // Verificar permissões
+        if (!current_user_can('manage_woocommerce')) {
+            wp_die(__('Você não tem permissão para realizar esta ação.', 'sicoob-payment'));
+        }
+
+        $scope_type = sanitize_text_field($_POST['scope_type']);
+        
+        // Definir scope baseado no tipo
+        $scope = ($scope_type === 'boleto') ? WC_Sicoob_Payment_API::BOLETO_SCOPE : WC_Sicoob_Payment_API::PIX_SCOPE;
+        
+        // Capturar informações da requisição antes de fazer o teste
+        $auth_config = WC_Sicoob_Payment_API::get_auth_config();
+        
+        // Preparar dados da requisição que será enviada
+        $token_data = array(
+            'grant_type' => 'client_credentials',
+            'client_id' => $auth_config['client_id'],
+            'scope' => $scope
+        );
+        
+        $request_headers = array(
+            'Content-Type: application/x-www-form-urlencoded'
+        );
+        
+        $request_info = array(
+            'method' => 'POST',
+            'headers' => $request_headers,
+            'body' => $token_data,
+            'endpoint' => WC_Sicoob_Payment_API::AUTH_ENDPOINT,
+            'curl_options' => array(
+                'CURLOPT_SSLCERT' => $auth_config['certificate_path'],
+                'CURLOPT_SSLKEY' => $auth_config['certificate_path'],
+                'CURLOPT_SSL_VERIFYPEER' => true,
+                'CURLOPT_SSL_VERIFYHOST' => 2
+            )
+        );
+        
+        // Fazer teste da API
+        $result = WC_Sicoob_Payment_API::get_access_token($scope);
+        
+        // Preparar resposta para exibição
+        $response_data = array(
+            'scope_type' => $scope_type,
+            'scope_used' => $scope,
+            'timestamp' => current_time('mysql'),
+            'request_info' => $request_info,
+            'auth_config' => array(
+                'ssl_certificate' => $auth_config['certificate_path'],
+                'ssl_key' => $auth_config['certificate_path'],
+                'certificate_exists' => file_exists($auth_config['certificate_path']),
+                'client_id_configured' => !empty($auth_config['client_id'])
+            ),
+            'result' => $result
+        );
+        
+        wp_send_json_success($response_data);
+    }
+
 
     /**
      * Display admin page
@@ -615,6 +684,42 @@ class WC_Sicoob_Payment_Admin {
                                 </a>
                             </div>
                         </form>
+                    </div>
+                </div>
+
+                <!-- Bloco de Teste da API -->
+                <div class="sicoob-config-block">
+                    <div class="sicoob-config-block-header">
+                        <h2>
+                            <span class="dashicons dashicons-admin-tools"></span>
+                            <?php _e('Teste da API', 'sicoob-payment'); ?>
+                        </h2>
+                    </div>
+                    
+                    <div class="sicoob-config-block-content">
+                        <div class="sicoob-test-section">
+                            <h3><?php _e('Teste de Token de Acesso', 'sicoob-payment'); ?></h3>
+                            <p><?php _e('Use este bloco para testar a comunicação com a API do Sicoob e verificar se as configurações estão corretas.', 'sicoob-payment'); ?></p>
+                            
+                            <div class="sicoob-test-actions">
+                                <button type="button" id="test-pix-token" class="sicoob-btn sicoob-btn-secondary">
+                                    <span class="dashicons dashicons-admin-network"></span>
+                                    <?php _e('Testar Token PIX', 'sicoob-payment'); ?>
+                                </button>
+                                
+                                <button type="button" id="test-boleto-token" class="sicoob-btn sicoob-btn-secondary">
+                                    <span class="dashicons dashicons-admin-network"></span>
+                                    <?php _e('Testar Token Boleto', 'sicoob-payment'); ?>
+                                </button>
+                            </div>
+                            
+                            <div id="api-test-results" class="sicoob-test-results" style="display: none;">
+                                <h4><?php _e('Resultado do Teste:', 'sicoob-payment'); ?></h4>
+                                <div class="sicoob-test-response">
+                                    <pre id="api-response-content"></pre>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

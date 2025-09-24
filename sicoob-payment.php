@@ -56,6 +56,7 @@ if (file_exists(SICOOB_PAYMENT_PLUGIN_DIR . 'vendor/autoload.php')) {
 function sicoob_payment_init() {
     require_once SICOOB_PAYMENT_PLUGIN_DIR . '/includes/class-wc-sicoob-payment.php';
     require_once SICOOB_PAYMENT_PLUGIN_DIR . '/includes/class-wc-sicoob-payment-admin.php';
+    require_once SICOOB_PAYMENT_PLUGIN_DIR . '/includes/class-wc-sicoob-payment-api.php';
     require_once SICOOB_PAYMENT_PLUGIN_DIR . '/includes/class-wc-sicoob-pix-gateway.php';
     require_once SICOOB_PAYMENT_PLUGIN_DIR . '/includes/class-wc-sicoob-boleto-gateway.php';
 
