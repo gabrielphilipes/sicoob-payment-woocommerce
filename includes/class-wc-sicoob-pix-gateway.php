@@ -99,6 +99,48 @@ class WC_Sicoob_Pix_Gateway extends WC_Payment_Gateway {
             );
         }
 
+        // Get PIX settings
+        $pix_key = $this->get_option('pix_key');
+        $pix_description = $this->get_option('pix_description');
+
+        // Validate PIX settings
+        if (empty($pix_key) || empty($pix_description)) {
+            wc_add_notice(__('Configurações do PIX não estão completas. Entre em contato com o administrador.', 'sicoob-payment'), 'error');
+            return array(
+                'result' => 'failure',
+                'redirect' => ''
+            );
+        }
+
+        // Prepare order data for PIX creation
+        $order_data = array(
+            'cpf' => $this->get_customer_cpf($order),
+            'nome' => $this->get_customer_name($order),
+            'valor' => $order->get_total()
+        );
+
+        // Create PIX COB
+        $pix_result = WC_Sicoob_Payment_API::create_pix_cob($order_data, $pix_key, $pix_description);
+
+        if (!$pix_result['success']) {
+            wc_add_notice(
+                sprintf(__('Erro ao gerar PIX: %s', 'sicoob-payment'), $pix_result['message']),
+                'error'
+            );
+            return array(
+                'result' => 'failure',
+                'redirect' => ''
+            );
+        }
+
+        // Store PIX data in order meta
+        $pix_data = $pix_result['data'];
+        $order->update_meta_data('_sicoob_pix_txid', $pix_data['txid'] ?? '');
+        $order->update_meta_data('_sicoob_pix_qrcode', $pix_data['brcode'] ?? '');
+        $order->update_meta_data('_sicoob_pix_criacao', $pix_data['calendario']['criacao'] ?? '');
+        $order->update_meta_data('_sicoob_pix_expiracao', $pix_data['calendario']['expiracao'] ?? 3600);
+        $order->save();
+
         // Mark order as pending
         $order->update_status('pending', __('Aguardando pagamento via PIX.', 'sicoob-payment'));
 
@@ -131,5 +173,63 @@ class WC_Sicoob_Pix_Gateway extends WC_Payment_Gateway {
         }
 
         return true;
+    }
+
+    /**
+     * Get customer CPF from order
+     *
+     * @param WC_Order $order Order object
+     * @return string
+     */
+    private function get_customer_cpf($order) {
+        // Try to get CPF from billing meta
+        $cpf = $order->get_meta('_billing_cpf');
+        
+        if (empty($cpf)) {
+            // Try to get CPF from billing meta with different key
+            $cpf = $order->get_meta('billing_cpf');
+        }
+        
+        if (empty($cpf)) {
+            // Try to get CPF from customer meta
+            $customer_id = $order->get_customer_id();
+            if ($customer_id) {
+                $cpf = get_user_meta($customer_id, 'billing_cpf', true);
+            }
+        }
+        
+        // If still empty, try to extract from billing address
+        if (empty($cpf)) {
+            $cpf = '00000000000'; // Default fallback
+        }
+        
+        return $cpf;
+    }
+
+    /**
+     * Get customer name from order
+     *
+     * @param WC_Order $order Order object
+     * @return string
+     */
+    private function get_customer_name($order) {
+        $first_name = $order->get_billing_first_name();
+        $last_name = $order->get_billing_last_name();
+        
+        $name = trim($first_name . ' ' . $last_name);
+        
+        // If billing name is empty, try shipping name
+        if (empty($name)) {
+            $first_name = $order->get_shipping_first_name();
+            $last_name = $order->get_shipping_last_name();
+            $name = trim($first_name . ' ' . $last_name);
+        }
+        
+        // If still empty, use customer display name
+        if (empty($name)) {
+            $name = $order->get_customer_note() ?: __('Cliente', 'sicoob-payment');
+        }
+        
+        return $name;
     }
 }

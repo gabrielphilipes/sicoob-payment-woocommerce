@@ -248,6 +248,11 @@ jQuery(document).ready(function ($) {
     testApiToken("boleto");
   });
 
+  // Teste de Geração PIX
+  $("#test-pix-generation").on("click", function () {
+    testPixGeneration();
+  });
+
   // Validação e contador para descrição do PIX
   function initPixDescriptionValidation() {
     var $pixDescriptionField = $(
@@ -435,6 +440,121 @@ jQuery(document).ready(function ($) {
             '<span class="dashicons dashicons-admin-network"></span> Testar Token Boleto'
           );
         }
+      },
+    });
+  }
+
+  // Função para teste de geração de PIX
+  function testPixGeneration() {
+    var $btn = $("#test-pix-generation");
+    var $results = $("#api-test-results");
+    var $content = $("#api-response-content");
+
+    // Desabilitar botão e mostrar loading
+    $btn.addClass("sicoob-loading").prop("disabled", true);
+    $btn.html(
+      '<span class="dashicons dashicons-update"></span> Testando Geração PIX...'
+    );
+
+    // Fazer requisição AJAX
+    $.ajax({
+      url: sicoob_payment_params.ajax_url,
+      type: "POST",
+      data: {
+        action: "sicoob_test_pix_generation",
+        nonce: sicoob_payment_params.test_pix_nonce,
+      },
+      success: function (response) {
+        var resultText = "";
+
+        if (response.success) {
+          resultText += "=== TESTE DE GERAÇÃO PIX - SUCESSO ===\n\n";
+
+          resultText += "=== DADOS DE TESTE GERADOS ===\n";
+          resultText +=
+            JSON.stringify(response.data.request_info.test_data, null, 2) +
+            "\n\n";
+
+          resultText += "=== CONFIGURAÇÕES PIX ===\n";
+          resultText +=
+            JSON.stringify(response.data.request_info.pix_settings, null, 2) +
+            "\n\n";
+
+          resultText += "=== ENDPOINT ===\n";
+          resultText += response.data.request_info.endpoint + "\n\n";
+
+          resultText += "=== RESULTADO DA GERAÇÃO ===\n";
+          resultText += JSON.stringify(response.data.result, null, 2) + "\n\n";
+
+          if (response.data.result.success && response.data.result.data) {
+            resultText += "=== DADOS DO PIX GERADO ===\n";
+            resultText +=
+              "TXID: " + (response.data.result.data.txid || "N/A") + "\n";
+            resultText +=
+              "Status: " + (response.data.result.data.status || "N/A") + "\n";
+            resultText +=
+              "Revisão: " + (response.data.result.data.revisao || "N/A") + "\n";
+            resultText +=
+              "Location: " +
+              (response.data.result.data.location || "N/A") +
+              "\n";
+            resultText +=
+              "BR Code: " + (response.data.result.data.brcode || "N/A") + "\n";
+            resultText +=
+              "Criação: " +
+              (response.data.result.data.calendario?.criacao || "N/A") +
+              "\n";
+            resultText +=
+              "Expiração: " +
+              (response.data.result.data.calendario?.expiracao || "N/A") +
+              " segundos\n";
+            resultText +=
+              "Valor: R$ " +
+              (response.data.result.data.valor?.original || "N/A") +
+              "\n";
+            resultText +=
+              "Chave PIX: " + (response.data.result.data.chave || "N/A") + "\n";
+            resultText +=
+              "Solicitação: " +
+              (response.data.result.data.solicitacaoPagador || "N/A") +
+              "\n\n";
+          }
+
+          resultText += "=== RESPOSTA COMPLETA ===\n";
+          resultText += JSON.stringify(response, null, 2);
+        } else {
+          resultText += "=== TESTE DE GERAÇÃO PIX - ERRO ===\n\n";
+          resultText +=
+            "Erro: " + (response.data.message || "Erro desconhecido") + "\n\n";
+          resultText += "=== DADOS DE TESTE ===\n";
+          resultText +=
+            JSON.stringify(response.data.request_info.test_data, null, 2) +
+            "\n\n";
+          resultText += "=== CONFIGURAÇÕES PIX ===\n";
+          resultText +=
+            JSON.stringify(response.data.request_info.pix_settings, null, 2) +
+            "\n\n";
+          resultText += "=== RESPOSTA COMPLETA ===\n";
+          resultText += JSON.stringify(response, null, 2);
+        }
+
+        $content.text(resultText);
+        $results.show();
+      },
+      error: function (xhr, status, error) {
+        var errorText = "Erro na comunicação com o servidor:\n";
+        errorText += "Status: " + status + "\n";
+        errorText += "Error: " + error + "\n";
+        errorText += "Response: " + xhr.responseText;
+        $content.text(errorText);
+        $results.show();
+      },
+      complete: function () {
+        // Reabilitar botão
+        $btn.removeClass("sicoob-loading").prop("disabled", false);
+        $btn.html(
+          '<span class="dashicons dashicons-money-alt"></span> Testar Geração PIX'
+        );
       },
     });
   }

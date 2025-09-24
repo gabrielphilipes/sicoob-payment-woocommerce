@@ -22,6 +22,7 @@ class WC_Sicoob_Payment_Admin {
         add_action('admin_post_sicoob_remove_certificate', array($this, 'remove_certificate'));
         add_action('wp_ajax_sicoob_remove_certificate', array($this, 'ajax_remove_certificate'));
         add_action('wp_ajax_sicoob_test_api', array($this, 'ajax_test_api'));
+        add_action('wp_ajax_sicoob_test_pix_generation', array($this, 'ajax_test_pix_generation'));
     }
 
     /**
@@ -64,6 +65,7 @@ class WC_Sicoob_Payment_Admin {
                 'ajax_url' => admin_url('admin-ajax.php'),
                 'nonce' => wp_create_nonce('sicoob_remove_certificate'),
                 'test_api_nonce' => wp_create_nonce('sicoob_test_api'),
+                'test_pix_nonce' => wp_create_nonce('sicoob_test_pix_generation'),
             ));
         }
 
@@ -92,6 +94,7 @@ class WC_Sicoob_Payment_Admin {
                     'ajax_url' => admin_url('admin-ajax.php'),
                     'nonce' => wp_create_nonce('sicoob_remove_certificate'),
                     'test_api_nonce' => wp_create_nonce('sicoob_test_api'),
+                    'test_pix_nonce' => wp_create_nonce('sicoob_test_pix_generation'),
                 ));
             }
         }
@@ -464,6 +467,90 @@ class WC_Sicoob_Payment_Admin {
         wp_send_json_success($response_data);
     }
 
+    /**
+     * Test PIX generation (AJAX action)
+     */
+    public function ajax_test_pix_generation() {
+        // Verificar nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'sicoob_test_pix_generation')) {
+            wp_die(__('Ação não autorizada.', 'sicoob-payment'));
+        }
+
+        // Verificar permissões
+        if (!current_user_can('manage_woocommerce')) {
+            wp_die(__('Você não tem permissão para realizar esta ação.', 'sicoob-payment'));
+        }
+
+        // Obter configurações do gateway PIX
+        $pix_settings = WC_Sicoob_Payment_API::get_pix_gateway_settings();
+        
+        // Verificar se as configurações estão completas
+        if (empty($pix_settings['pix_key']) || empty($pix_settings['pix_description'])) {
+            wp_send_json_error(array(
+                'message' => __('Configurações do PIX não estão completas. Configure a chave PIX e descrição nas configurações do gateway.', 'sicoob-payment'),
+                'settings' => $pix_settings
+            ));
+        }
+
+        // Gerar dados randômicos para teste
+        $test_data = $this->generate_random_test_data();
+        
+        // Preparar informações da requisição
+        $request_info = array(
+            'test_data' => $test_data,
+            'pix_settings' => $pix_settings,
+            'timestamp' => current_time('mysql'),
+            'endpoint' => WC_Sicoob_Payment_API::PIX_ENDPOINT . '/cob'
+        );
+
+        // Fazer teste de geração de PIX
+        $result = WC_Sicoob_Payment_API::create_pix_cob(
+            $test_data, 
+            $pix_settings['pix_key'], 
+            $pix_settings['pix_description']
+        );
+
+        // Preparar resposta para exibição
+        $response_data = array(
+            'request_info' => $request_info,
+            'result' => $result,
+            'success' => $result['success']
+        );
+
+        if ($result['success']) {
+            wp_send_json_success($response_data);
+        } else {
+            wp_send_json_error($response_data);
+        }
+    }
+
+    /**
+     * Generate random test data for PIX
+     *
+     * @return array
+     */
+    private function generate_random_test_data() {
+        $cpf = '73371160041';
+        
+        $nomes = array(
+            'João Silva Santos',
+            'Maria Oliveira Costa',
+            'Pedro Almeida Lima',
+            'Ana Paula Rodrigues',
+            'Carlos Eduardo Ferreira',
+            'Lucia Helena Souza',
+            'Roberto Carlos Mendes',
+            'Fernanda Beatriz Alves'
+        );
+        
+        $valor = 0.01;
+        
+        return array(
+            'cpf' => $cpf,
+            'nome' => $nomes[array_rand($nomes)],
+            'valor' => $valor
+        );
+    }
 
     /**
      * Display admin page
@@ -738,6 +825,11 @@ class WC_Sicoob_Payment_Admin {
                                 <button type="button" id="test-boleto-token" class="sicoob-btn sicoob-btn-secondary">
                                     <span class="dashicons dashicons-admin-network"></span>
                                     <?php _e('Testar Token Boleto', 'sicoob-payment'); ?>
+                                </button>
+                                
+                                <button type="button" id="test-pix-generation" class="sicoob-btn sicoob-btn-primary">
+                                    <span class="dashicons dashicons-money-alt"></span>
+                                    <?php _e('Testar Geração PIX', 'sicoob-payment'); ?>
                                 </button>
                             </div>
                             

@@ -286,4 +286,99 @@ class WC_Sicoob_Payment_API {
             );
         }
     }
+
+    /**
+     * Create PIX COB (Cobrança Imediata)
+     *
+     * @param array $order_data Order data with customer information
+     * @param string $pix_key PIX key from gateway settings
+     * @param string $pix_description PIX description from gateway settings
+     * @return array
+     */
+    public static function create_pix_cob($order_data, $pix_key, $pix_description): array {
+        // Validate required parameters
+        if (empty($pix_key)) {
+            return array(
+                'success' => false,
+                'message' => __('Chave PIX não configurada.', 'sicoob-payment'),
+                'data' => null
+            );
+        }
+
+        if (empty($pix_description)) {
+            return array(
+                'success' => false,
+                'message' => __('Descrição do PIX não configurada.', 'sicoob-payment'),
+                'data' => null
+            );
+        }
+
+        // Validate order data
+        if (empty($order_data['cpf']) || empty($order_data['nome']) || empty($order_data['valor'])) {
+            return array(
+                'success' => false,
+                'message' => __('Dados do pedido incompletos (CPF, nome ou valor).', 'sicoob-payment'),
+                'data' => null
+            );
+        }
+
+        // Prepare PIX COB data according to Sicoob API specification
+        $pix_data = array(
+            'calendario' => array(
+                'expiracao' => 108000 // 30 horas em segundos
+            ),
+            'devedor' => array(
+                'cpf' => preg_replace('/[^0-9]/', '', $order_data['cpf']), // Only numbers
+                'nome' => sanitize_text_field($order_data['nome'])
+            ),
+            'valor' => array(
+                'original' => number_format($order_data['valor'], 2, '.', '') // Format as string with 2 decimals
+            ),
+            'chave' => sanitize_text_field($pix_key),
+            'solicitacaoPagador' => sanitize_text_field($pix_description)
+        );
+
+        // Log PIX creation attempt
+        WC_Sicoob_Payment::log_message(
+            sprintf(
+                __('Criando PIX COB - Cliente: %s, CPF: %s, Valor: %s', 'sicoob-payment'),
+                $pix_data['devedor']['nome'],
+                $pix_data['devedor']['cpf'],
+                $pix_data['valor']['original']
+            ),
+            'info'
+        );
+
+        // Make authenticated request to create PIX COB
+        $endpoint = self::PIX_ENDPOINT . '/cob';
+        $result = self::make_authenticated_request($endpoint, $pix_data, 'POST', self::PIX_SCOPE);
+
+        if ($result['success']) {
+            WC_Sicoob_Payment::log_message(
+                __('PIX COB criado com sucesso.', 'sicoob-payment'),
+                'info'
+            );
+        } else {
+            WC_Sicoob_Payment::log_message(
+                sprintf(__('Erro ao criar PIX COB: %s', 'sicoob-payment'), $result['message']),
+                'error'
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get PIX gateway settings
+     *
+     * @return array
+     */
+    public static function get_pix_gateway_settings(): array {
+        $gateway = new WC_Sicoob_Pix_Gateway();
+        
+        return array(
+            'pix_key' => $gateway->get_option('pix_key'),
+            'pix_description' => $gateway->get_option('pix_description')
+        );
+    }
 }
