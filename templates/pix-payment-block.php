@@ -27,7 +27,7 @@ $hours_remaining = floor($time_remaining / 3600);
 $minutes_remaining = floor(($time_remaining % 3600) / 60);
 ?>
 
-<div class="sicoob-pix-payment-block">
+<div class="sicoob-pix-payment-block" id="sicoob-pix-payment-block">
     <div class="sicoob-pix-header">
         <h3><?php _e('Pagamento via PIX', 'sicoob-payment'); ?></h3>
         <p><?php _e('Escaneie o QR Code ou copie o código PIX para realizar o pagamento', 'sicoob-payment'); ?></p>
@@ -109,20 +109,28 @@ $minutes_remaining = floor(($time_remaining % 3600) / 60);
     </div>
 </div>
 
-<style>
-.sicoob-pix-expiration {
-    color: #dc3545;
-    font-weight: 500;
-    margin-top: 8px;
-}
+<!-- Bloco de Sucesso (inicialmente oculto) -->
+<div class="sicoob-pix-success-block" id="sicoob-pix-success-block" style="display: none;">
+    <div class="sicoob-pix-success-header">
+        <h3><?php _e('Pagamento Recebido!', 'sicoob-payment'); ?></h3>
+    </div>
 
-@media (max-width: 768px) {
-    .sicoob-pix-code-input {
-        display: none;
-    }
-    
-    .sicoob-pix-code-textarea {
-        display: block !important;
-    }
-}
-</style>
+    <div class="sicoob-pix-success-content">
+        <div class="sicoob-pix-success-message">
+            <div class="sicoob-pix-success-info">
+                <p class="sicoob-pix-success-text">
+                    <?php _e('Obrigado! Seu pagamento via PIX foi processado com sucesso.', 'sicoob-payment'); ?>
+                </p>
+                <p class="sicoob-pix-success-details">
+                    <?php _e('Em breve, você receberá mais informações sobre seu pedido por e-mail.', 'sicoob-payment'); ?>
+                </p>
+            </div>
+        </div>
+
+        <div class="sicoob-pix-success-actions">
+            <a href="<?php echo esc_url(wc_get_page_permalink('shop')); ?>" class="sicoob-pix-success-btn">
+                <?php _e('Ver mais produtos', 'sicoob-payment'); ?>
+            </a>
+        </div>
+    </div>
+</div>

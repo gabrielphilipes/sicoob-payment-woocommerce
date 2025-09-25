@@ -302,6 +302,166 @@
   }
 }
 
+/* Success block */
+.sicoob-pix-success-block {
+  background: white;
+  border-radius: 12px;
+  margin-bottom: 100px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.sicoob-pix-success-header {
+  text-align: center;
+  padding: 32px 24px;
+  border-radius: 10px 10px 0 0;
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+}
+
+.sicoob-pix-success-icon {
+  margin-bottom: 16px;
+  animation: successPulse 2s ease-in-out infinite;
+}
+
+.sicoob-pix-success-header h3 {
+  color: white;
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+
+.sicoob-pix-success-header p {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.sicoob-pix-success-content {
+  padding: 32px 24px;
+}
+
+.sicoob-pix-success-message {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.sicoob-pix-success-info {
+  padding: 24px;
+}
+
+.sicoob-pix-success-text {
+  color: #2c3e50;
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin: 0 0 12px 0;
+  line-height: 1.4;
+}
+
+.sicoob-pix-success-details {
+  color: #6c757d;
+  font-size: 0.9rem;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.sicoob-pix-success-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.sicoob-pix-success-btn {
+  background: #6c757d;
+  color: white;
+  text-decoration: none;
+  padding: 14px 28px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color 0.2s, transform 0.2s;
+  display: inline-block;
+  border: none;
+  cursor: pointer;
+}
+
+.sicoob-pix-success-btn:hover {
+  background: #5a6268;
+  color: white;
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+
+.sicoob-pix-success-btn:active {
+  background: #545b62;
+  transform: translateY(0);
+}
+
+@keyframes successPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.sicoob-pix-expiration {
+  color: #dc3545;
+  font-weight: 500;
+  margin-top: 8px;
+}
+
+@media (max-width: 768px) {
+  .sicoob-pix-code-input {
+    display: none;
+  }
+
+  .sicoob-pix-code-textarea {
+    display: block !important;
+  }
+
+  .sicoob-pix-success-block {
+    margin-bottom: 140px;
+  }
+
+  .sicoob-pix-success-header {
+    padding: 24px 20px;
+  }
+
+  .sicoob-pix-success-header h3 {
+    font-size: 1.3rem;
+  }
+
+  .sicoob-pix-success-content {
+    padding: 24px 20px;
+  }
+
+  .sicoob-pix-success-info {
+    padding: 20px;
+  }
+
+  .sicoob-pix-success-btn {
+    width: 100%;
+    text-align: center;
+    padding: 16px 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sicoob-pix-success-header h3 {
+    font-size: 1.2rem;
+  }
+
+  .sicoob-pix-success-text {
+    font-size: 1rem;
+  }
+
+  .sicoob-pix-success-btn {
+    padding: 14px 20px;
+    font-size: 0.85rem;
+  }
+}
+
 .woocommerce-order-overview.woocommerce-thankyou-order-details.order_details {
   display: none !important;
 }
