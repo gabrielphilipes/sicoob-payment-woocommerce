@@ -66,6 +66,9 @@ class WC_Sicoob_Payment {
         if (is_admin()) {
             new WC_Sicoob_Payment_Admin();
         }
+
+        // Initialize webhook handler
+        new WC_Sicoob_Payment_Webhook();
     }
 
     /**
