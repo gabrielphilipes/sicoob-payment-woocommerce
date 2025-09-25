@@ -910,4 +910,91 @@ jQuery(document).ready(function ($) {
       },
     });
   }
+
+  // Test Boleto Email
+  $("#test-boleto-email").on("click", function () {
+    const $btn = $(this);
+    const $emailInput = $("#test-email-address");
+    const $results = $("#email-test-results");
+    const $content = $("#email-response-content");
+
+    // Validate email
+    const testEmail = $emailInput.val().trim();
+    if (!testEmail || !isValidEmail(testEmail)) {
+      alert("Por favor, digite um e-mail válido para o teste.");
+      $emailInput.focus();
+      return;
+    }
+
+    // Set loading state
+    $btn.addClass("sicoob-loading").prop("disabled", true);
+    $btn.html('<span class="dashicons dashicons-update"></span> Enviando...');
+
+    // Hide previous results
+    $results.hide();
+
+    // Make AJAX request
+    $.ajax({
+      url: sicoob_payment_params.ajax_url,
+      type: "POST",
+      data: {
+        action: "sicoob_test_boleto_email",
+        nonce: sicoob_payment_params.test_boleto_email_nonce,
+        test_email: testEmail,
+      },
+      success: function (response) {
+        if (response.success) {
+          const data = response.data;
+          let successText = "✅ E-mail de teste enviado com sucesso!\n\n";
+          successText += `📧 E-mail enviado para: ${data.test_summary.email_sent_to}\n`;
+          successText += `📋 Pedido de teste: #${data.test_summary.order_id}\n`;
+          successText += `📄 Nosso Número: ${data.test_summary.boleto_data.nosso_numero}\n`;
+          successText += `💰 Valor: R$ ${data.test_summary.boleto_data.valor}\n`;
+          successText += `📅 Vencimento: ${data.test_summary.boleto_data.data_vencimento}\n\n`;
+          successText +=
+            "📨 Verifique sua caixa de entrada (e spam) para ver o e-mail de teste.";
+
+          $content.text(successText);
+          $results.show();
+        } else {
+          let errorText = "❌ Erro ao enviar e-mail de teste:\n\n";
+          errorText += `🔍 Detalhes: ${response.data.message}\n\n`;
+          if (response.data.error_details) {
+            errorText += `📋 Erro técnico: ${response.data.error_details}\n\n`;
+          }
+          errorText += "💡 Verifique:\n";
+          errorText += "- Se o e-mail está correto\n";
+          errorText +=
+            "- Se o sistema de e-mails do WordPress está configurado\n";
+          errorText += "- Se a classe de e-mail está registrada\n";
+          errorText += "- Os logs do WooCommerce para mais detalhes";
+
+          $content.text(errorText);
+          $results.show();
+        }
+      },
+      error: function (xhr, status, error) {
+        let errorText = "❌ Erro de conexão ao testar e-mail:\n\n";
+        errorText += `🔍 Status: ${status}\n`;
+        errorText += `📋 Erro: ${error}\n\n`;
+        errorText +=
+          "💡 Verifique sua conexão com a internet e tente novamente.";
+        $content.text(errorText);
+        $results.show();
+      },
+      complete: function () {
+        // Reset button state
+        $btn.removeClass("sicoob-loading").prop("disabled", false);
+        $btn.html(
+          '<span class="dashicons dashicons-email-alt"></span> Enviar E-mail de Teste'
+        );
+      },
+    });
+  });
+
+  // Email validation helper
+  function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
 });

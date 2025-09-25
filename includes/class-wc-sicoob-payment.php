@@ -59,6 +59,9 @@ class WC_Sicoob_Payment {
         // Register payment gateways
         add_filter('woocommerce_payment_gateways', array($this, 'add_payment_gateways'));
 
+        // Register email classes
+        add_filter('woocommerce_email_classes', array($this, 'add_email_classes'));
+
         // Initialize admin functionality
         if (is_admin()) {
             new WC_Sicoob_Payment_Admin();
@@ -76,6 +79,21 @@ class WC_Sicoob_Payment {
         $gateways[] = 'WC_Sicoob_Boleto_Gateway';
         
         return $gateways;
+    }
+
+    /**
+     * Add email classes to WooCommerce
+     *
+     * @param array $email_classes List of existing email classes
+     * @return array
+     */
+    public function add_email_classes($email_classes): array {
+        // Load email class
+        require_once SICOOB_PAYMENT_PLUGIN_DIR . 'includes/class-wc-sicoob-boleto-email.php';
+        
+        $email_classes['WC_Sicoob_Boleto_Email'] = new WC_Sicoob_Boleto_Email();
+        
+        return $email_classes;
     }
 
     /**

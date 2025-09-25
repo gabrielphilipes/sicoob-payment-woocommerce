@@ -24,6 +24,7 @@ class WC_Sicoob_Payment_Admin {
         add_action('wp_ajax_sicoob_test_api', array($this, 'ajax_test_api'));
         add_action('wp_ajax_sicoob_test_pix_generation', array($this, 'ajax_test_pix_generation'));
         add_action('wp_ajax_sicoob_test_boleto_generation', array($this, 'ajax_test_boleto_generation'));
+        add_action('wp_ajax_sicoob_test_boleto_email', array($this, 'ajax_test_boleto_email'));
     }
 
     /**
@@ -68,6 +69,7 @@ class WC_Sicoob_Payment_Admin {
                 'test_api_nonce' => wp_create_nonce('sicoob_test_api'),
                 'test_pix_nonce' => wp_create_nonce('sicoob_test_pix_generation'),
                 'test_boleto_nonce' => wp_create_nonce('sicoob_test_boleto_generation'),
+                'test_boleto_email_nonce' => wp_create_nonce('sicoob_test_boleto_email'),
             ));
         }
 
@@ -98,6 +100,7 @@ class WC_Sicoob_Payment_Admin {
                     'test_api_nonce' => wp_create_nonce('sicoob_test_api'),
                     'test_pix_nonce' => wp_create_nonce('sicoob_test_pix_generation'),
                     'test_boleto_nonce' => wp_create_nonce('sicoob_test_boleto_generation'),
+                    'test_boleto_email_nonce' => wp_create_nonce('sicoob_test_boleto_email'),
                 ));
             }
         }
@@ -821,6 +824,154 @@ class WC_Sicoob_Payment_Admin {
     }
 
     /**
+     * Test Boleto email sending (AJAX action)
+     * 
+     * Testa o envio de e-mail do boleto usando dados fictícios
+     * para validar a configuração e funcionamento do sistema de e-mails.
+     */
+    public function ajax_test_boleto_email() {
+        // Verificar nonce de segurança
+        if (!wp_verify_nonce($_POST['nonce'], 'sicoob_test_boleto_email')) {
+            wp_die(__('Ação não autorizada.', 'sicoob-payment'));
+        }
+
+        // Verificar permissões do usuário
+        if (!current_user_can('manage_woocommerce')) {
+            wp_die(__('Você não tem permissão para realizar esta ação.', 'sicoob-payment'));
+        }
+
+        // Obter e-mail de teste
+        $test_email = sanitize_email($_POST['test_email'] ?? '');
+        if (empty($test_email) || !is_email($test_email)) {
+            wp_send_json_error(array(
+                'message' => __('E-mail de teste inválido. Forneça um e-mail válido.', 'sicoob-payment')
+            ));
+        }
+
+        // Verificar se a classe de e-mail está registrada
+        $mailer = WC()->mailer();
+        $emails = $mailer->get_emails();
+        
+        if (!isset($emails['WC_Sicoob_Boleto_Email'])) {
+            wp_send_json_error(array(
+                'message' => __('Classe de e-mail do boleto não está registrada. Verifique se o plugin está ativo.', 'sicoob-payment')
+            ));
+        }
+
+        // Criar pedido fictício para teste
+        $test_order = $this->create_test_order($test_email);
+        
+        // Gerar dados de boleto fictícios
+        $test_boleto_data = $this->generate_test_boleto_data();
+        
+        // Preparar informações da requisição para debug
+        $request_info = array(
+            'test_email' => $test_email,
+            'test_order_id' => $test_order->get_id(),
+            'test_boleto_data' => $test_boleto_data,
+            'timestamp' => current_time('mysql'),
+            'test_type' => 'boleto_email'
+        );
+
+        // Log do teste iniciado
+        WC_Sicoob_Payment::log_message(
+            sprintf(__('Iniciando teste de e-mail de boleto - E-mail: %s, Pedido: %s', 'sicoob-payment'), 
+                $test_email, 
+                $test_order->get_id()
+            ),
+            'info'
+        );
+
+        try {
+            // Tentar enviar o e-mail usando o hook
+            do_action('sicoob_boleto_email_notification', $test_order, $test_boleto_data);
+            
+            // Log do sucesso
+            WC_Sicoob_Payment::log_message(
+                sprintf(__('Teste de e-mail de boleto bem-sucedido - E-mail: %s', 'sicoob-payment'), $test_email),
+                'info'
+            );
+
+            // Preparar resposta de sucesso
+            $response_data = array(
+                'request_info' => $request_info,
+                'success' => true,
+                'message' => sprintf(__('E-mail de teste enviado com sucesso para %s!', 'sicoob-payment'), $test_email),
+                'test_summary' => array(
+                    'test_type' => 'boleto_email',
+                    'email_sent_to' => $test_email,
+                    'order_id' => $test_order->get_id(),
+                    'boleto_data' => $test_boleto_data
+                )
+            );
+
+            wp_send_json_success($response_data);
+
+        } catch (Exception $e) {
+            // Log do erro
+            WC_Sicoob_Payment::log_message(
+                sprintf(__('Teste de e-mail de boleto falhou: %s', 'sicoob-payment'), $e->getMessage()),
+                'error'
+            );
+
+            wp_send_json_error(array(
+                'request_info' => $request_info,
+                'message' => sprintf(__('Erro ao enviar e-mail de teste: %s', 'sicoob-payment'), $e->getMessage()),
+                'error_details' => $e->getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Create test order for email testing
+     *
+     * @param string $email Test email address
+     * @return WC_Order
+     */
+    private function create_test_order($email) {
+        // Criar pedido fictício
+        $order = wc_create_order();
+        
+        // Definir dados do cliente
+        $order->set_billing_email($email);
+        $order->set_billing_first_name('Teste');
+        $order->set_billing_last_name('E-mail');
+        $order->set_billing_address_1('Rua de Teste, 123');
+        $order->set_billing_city('São Paulo');
+        $order->set_billing_state('SP');
+        $order->set_billing_postcode('01234567');
+        $order->set_billing_country('BR');
+        
+        // Adicionar produto fictício
+        $product = new WC_Product_Simple();
+        $product->set_name('Produto de Teste - E-mail');
+        $product->set_price(0.01);
+        $product->save();
+        
+        $order->add_product($product, 1);
+        $order->calculate_totals();
+        $order->save();
+        
+        return $order;
+    }
+
+    /**
+     * Generate test boleto data
+     *
+     * @return array
+     */
+    private function generate_test_boleto_data() {
+        return array(
+            'nosso_numero' => 'TEST' . time(),
+            'linha_digitavel' => '12345.67890.12345.678901.23456.78901.2.34567890123',
+            'valor' => 0.01,
+            'data_vencimento' => date('Y-m-d', strtotime('+3 days')),
+            'data_emissao' => date('Y-m-d'),
+            'pdf_url' => home_url('/wp-content/uploads/test-boleto.pdf') // URL fictícia
+        );
+    }
+
+    /**
      * Display admin page
      */
     public function admin_page() {
@@ -1110,6 +1261,54 @@ class WC_Sicoob_Payment_Admin {
                                 <h4><?php _e('Resultado do Teste:', 'sicoob-payment'); ?></h4>
                                 <div class="sicoob-test-response">
                                     <pre id="api-response-content"></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bloco de Teste de E-mail -->
+                <div class="sicoob-config-block">
+                    <div class="sicoob-config-block-header">
+                        <h2>
+                            <span class="dashicons dashicons-email-alt"></span>
+                            <?php _e('Teste de E-mail do Boleto', 'sicoob-payment'); ?>
+                        </h2>
+                    </div>
+                    
+                    <div class="sicoob-config-block-content">
+                        <div class="sicoob-test-section">
+                            <h3><?php _e('Teste de Envio de E-mail', 'sicoob-payment'); ?></h3>
+                            <p><?php _e('Use este bloco para testar o envio de e-mail com dados do boleto. Um e-mail de teste será enviado com dados fictícios.', 'sicoob-payment'); ?></p>
+                            
+                            <div class="sicoob-email-test-form">
+                                <div class="sicoob-config-field">
+                                    <label for="test-email-address">
+                                        <?php _e('E-mail de Teste', 'sicoob-payment'); ?>
+                                    </label>
+                                    <input 
+                                        type="email" 
+                                        id="test-email-address" 
+                                        placeholder="<?php _e('Digite seu e-mail para receber o teste', 'sicoob-payment'); ?>"
+                                        class="sicoob-email-input"
+                                    >
+                                    <div class="sicoob-config-field-description">
+                                        <?php _e('Digite um e-mail válido onde você deseja receber o e-mail de teste do boleto.', 'sicoob-payment'); ?>
+                                    </div>
+                                </div>
+                                
+                                <div class="sicoob-test-actions">
+                                    <button type="button" id="test-boleto-email" class="sicoob-btn sicoob-btn-primary">
+                                        <span class="dashicons dashicons-email-alt"></span>
+                                        <?php _e('Enviar E-mail de Teste', 'sicoob-payment'); ?>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div id="email-test-results" class="sicoob-test-results" style="display: none;">
+                                <h4><?php _e('Resultado do Teste de E-mail:', 'sicoob-payment'); ?></h4>
+                                <div class="sicoob-test-response">
+                                    <pre id="email-response-content"></pre>
                                 </div>
                             </div>
                         </div>

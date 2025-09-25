@@ -157,6 +157,19 @@ class WC_Sicoob_Boleto_Gateway extends WC_Payment_Gateway {
                 'custom_attributes' => array(
                     'onclick' => 'sicoobInsertSuggestions()'
                 )
+            ),
+            'email_section' => array(
+                'title' => __('Configurações de E-mail', 'sicoob-payment'),
+                'type' => 'title',
+                'description' => __('Configure o envio automático de e-mail com os dados do boleto.', 'sicoob-payment'),
+            ),
+            'send_email' => array(
+                'title' => __('Enviar E-mail Automaticamente', 'sicoob-payment'),
+                'type' => 'checkbox',
+                'label' => __('Enviar e-mail com dados do boleto após a geração', 'sicoob-payment'),
+                'default' => 'yes',
+                'desc_tip' => true,
+                'description' => __('Quando habilitado, um e-mail será enviado automaticamente ao cliente com os dados do boleto.', 'sicoob-payment')
             )
         );
     }
@@ -231,6 +244,9 @@ class WC_Sicoob_Boleto_Gateway extends WC_Payment_Gateway {
 
         // Mark order as pending
         $order->update_status('pending', __('Aguardando pagamento via boleto.', 'sicoob-payment'));
+
+        // Send boleto email
+        $this->send_boleto_email($order, $boleto_data);
 
         // Remove cart
         WC()->cart->empty_cart();
@@ -403,5 +419,21 @@ class WC_Sicoob_Boleto_Gateway extends WC_Payment_Gateway {
         }
         
         return $state ?: '';
+    }
+
+    /**
+     * Send boleto email to customer
+     *
+     * @param WC_Order $order Order object
+     * @param array $boleto_data Boleto data
+     */
+    private function send_boleto_email($order, $boleto_data) {
+        // Check if email is enabled
+        if ($this->get_option('send_email') !== 'yes') {
+            return;
+        }
+
+        // Trigger the email action
+        do_action('sicoob_boleto_email_notification', $order, $boleto_data);
     }
 }
