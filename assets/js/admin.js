@@ -997,4 +997,265 @@ jQuery(document).ready(function ($) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   }
+
+  // ===== WEBHOOK PIX FUNCTIONALITY =====
+
+  // Check webhook status
+  $("#check-webhook-status").on("click", function (e) {
+    e.preventDefault();
+
+    const $button = $(this);
+    const $results = $("#webhook-test-results");
+    const $responseContent = $("#webhook-response-content");
+    const $statusDisplay = $("#webhook-status-display");
+
+    // Disable button and show loading
+    $button
+      .prop("disabled", true)
+      .html('<span class="dashicons dashicons-update"></span> Verificando...');
+
+    $.ajax({
+      url: sicoob_payment_params.ajax_url,
+      type: "POST",
+      data: {
+        action: "sicoob_check_webhook_status",
+        nonce: sicoob_payment_params.webhook_status_nonce,
+      },
+      success: function (response) {
+        if (response.success) {
+          $responseContent.html(JSON.stringify(response.data, null, 2));
+          $results.show();
+
+          // Update status display
+          updateWebhookStatusDisplay(response.data);
+        } else {
+          $responseContent.html(JSON.stringify(response.data, null, 2));
+          $results.show();
+        }
+      },
+      error: function (xhr, status, error) {
+        $responseContent.html("Erro na requisição: " + error);
+        $results.show();
+      },
+      complete: function () {
+        $button
+          .prop("disabled", false)
+          .html(
+            '<span class="dashicons dashicons-visibility"></span> Verificar Status'
+          );
+      },
+    });
+  });
+
+  // Register webhook
+  $("#register-webhook").on("click", function (e) {
+    e.preventDefault();
+
+    const $button = $(this);
+    const $results = $("#webhook-test-results");
+    const $responseContent = $("#webhook-response-content");
+
+    // Disable button and show loading
+    $button
+      .prop("disabled", true)
+      .html('<span class="dashicons dashicons-update"></span> Vinculando...');
+
+    $.ajax({
+      url: sicoob_payment_params.ajax_url,
+      type: "POST",
+      data: {
+        action: "sicoob_register_webhook",
+        nonce: sicoob_payment_params.webhook_register_nonce,
+      },
+      success: function (response) {
+        if (response.success) {
+          $responseContent.html(JSON.stringify(response.data, null, 2));
+          $results.show();
+
+          // Show success message
+          showWebhookMessage("Webhook vinculado com sucesso!", "success");
+        } else {
+          $responseContent.html(JSON.stringify(response.data, null, 2));
+          $results.show();
+
+          // Show error message
+          showWebhookMessage(
+            "Erro ao vincular webhook: " +
+              (response.data.message || "Erro desconhecido"),
+            "error"
+          );
+        }
+      },
+      error: function (xhr, status, error) {
+        $responseContent.html("Erro na requisição: " + error);
+        $results.show();
+        showWebhookMessage("Erro na requisição: " + error, "error");
+      },
+      complete: function () {
+        $button
+          .prop("disabled", false)
+          .html(
+            '<span class="dashicons dashicons-admin-links"></span> Vincular Webhook'
+          );
+      },
+    });
+  });
+
+  // Unregister webhook
+  $("#unregister-webhook").on("click", function (e) {
+    e.preventDefault();
+
+    const $button = $(this);
+    const $results = $("#webhook-test-results");
+    const $responseContent = $("#webhook-response-content");
+
+    // Confirm action
+    if (!confirm("Tem certeza que deseja desvincular o webhook PIX?")) {
+      return;
+    }
+
+    // Disable button and show loading
+    $button
+      .prop("disabled", true)
+      .html(
+        '<span class="dashicons dashicons-update"></span> Desvinculando...'
+      );
+
+    $.ajax({
+      url: sicoob_payment_params.ajax_url,
+      type: "POST",
+      data: {
+        action: "sicoob_unregister_webhook",
+        nonce: sicoob_payment_params.webhook_unregister_nonce,
+      },
+      success: function (response) {
+        if (response.success) {
+          $responseContent.html(JSON.stringify(response.data, null, 2));
+          $results.show();
+
+          // Show success message
+          showWebhookMessage("Webhook desvinculado com sucesso!", "success");
+        } else {
+          $responseContent.html(JSON.stringify(response.data, null, 2));
+          $results.show();
+
+          // Show error message
+          showWebhookMessage(
+            "Erro ao desvincular webhook: " +
+              (response.data.message || "Erro desconhecido"),
+            "error"
+          );
+        }
+      },
+      error: function (xhr, status, error) {
+        $responseContent.html("Erro na requisição: " + error);
+        $results.show();
+        showWebhookMessage("Erro na requisição: " + error, "error");
+      },
+      complete: function () {
+        $button
+          .prop("disabled", false)
+          .html(
+            '<span class="dashicons dashicons-trash"></span> Desvincular Webhook'
+          );
+      },
+    });
+  });
+
+  // Copy webhook URL
+  $(".sicoob-copy-url-btn").on("click", function (e) {
+    e.preventDefault();
+
+    const url = $(this).data("url");
+    const $button = $(this);
+
+    // Copy to clipboard
+    navigator.clipboard
+      .writeText(url)
+      .then(function () {
+        // Show success feedback
+        const originalText = $button.html();
+        $button.html(
+          '<span class="dashicons dashicons-yes-alt"></span> Copiado!'
+        );
+
+        setTimeout(function () {
+          $button.html(originalText);
+        }, 2000);
+      })
+      .catch(function (err) {
+        // Fallback for older browsers
+        const textArea = document.createElement("textarea");
+        textArea.value = url;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textArea);
+
+        // Show success feedback
+        const originalText = $button.html();
+        $button.html(
+          '<span class="dashicons dashicons-yes-alt"></span> Copiado!'
+        );
+
+        setTimeout(function () {
+          $button.html(originalText);
+        }, 2000);
+      });
+  });
+
+  // Helper function to update webhook status display
+  function updateWebhookStatusDisplay(data) {
+    const $statusDisplay = $("#webhook-status-display");
+    const $statusIcon = $statusDisplay.find(".sicoob-status-icon");
+    const $statusText = $statusDisplay.find(".sicoob-status-text");
+    const $statusDetails = $statusDisplay.find(".sicoob-status-details");
+
+    if (data.result && data.result.success) {
+      $statusIcon
+        .removeClass("dashicons-warning dashicons-dismiss")
+        .addClass("dashicons-yes-alt");
+      $statusText.text("Webhook vinculado");
+      $statusDetails.html(
+        "<p>O webhook está ativo e funcionando corretamente.</p>"
+      );
+    } else {
+      $statusIcon
+        .removeClass("dashicons-yes-alt dashicons-dismiss")
+        .addClass("dashicons-warning");
+      $statusText.text("Webhook não vinculado");
+      $statusDetails.html(
+        "<p>O webhook não está configurado ou há algum problema.</p>"
+      );
+    }
+
+    $statusDisplay.show();
+  }
+
+  // Helper function to show webhook messages
+  function showWebhookMessage(message, type) {
+    const messageClass = type === "success" ? "notice-success" : "notice-error";
+    const iconClass =
+      type === "success" ? "dashicons-yes-alt" : "dashicons-warning";
+
+    const $message = $(
+      '<div class="notice ' +
+        messageClass +
+        ' is-dismissible"><p><span class="dashicons ' +
+        iconClass +
+        '"></span> ' +
+        message +
+        "</p></div>"
+    );
+
+    // Insert after the webhook block
+    $(".sicoob-config-block").first().after($message);
+
+    // Auto-dismiss after 5 seconds
+    setTimeout(function () {
+      $message.fadeOut(function () {
+        $message.remove();
+      });
+    }, 5000);
+  }
 });

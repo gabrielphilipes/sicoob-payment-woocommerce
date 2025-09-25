@@ -69,7 +69,7 @@ class WC_Sicoob_Payment_API {
      * Make cURL request to Sicoob API
      *
      * @param string $url Request URL
-     * @param array $post_data POST data (optional)
+     * @param array|string $post_data POST data (optional)
      * @param array $headers Additional headers (optional). To override Content-Type, include 'Content-Type: application/json' in headers
      * @param string $method HTTP method (GET, POST, PUT, etc.)
      * @return array
@@ -628,5 +628,124 @@ class WC_Sicoob_Payment_API {
             'instruction_4' => $gateway->get_option('instruction_4'),
             'instruction_5' => $gateway->get_option('instruction_5')
         );
+    }
+
+    /**
+     * Register PIX webhook
+     *
+     * @param string $pix_key PIX key
+     * @param string $webhook_url Webhook URL
+     * @return array
+     */
+    public static function register_pix_webhook($pix_key, $webhook_url): array {
+        // Validate parameters
+        if (empty($pix_key)) {
+            return array(
+                'success' => false,
+                'message' => __('Chave PIX não fornecida.', 'sicoob-payment'),
+                'data' => null
+            );
+        }
+
+        if (empty($webhook_url) || !filter_var($webhook_url, FILTER_VALIDATE_URL)) {
+            return array(
+                'success' => false,
+                'message' => __('URL do webhook inválida.', 'sicoob-payment'),
+                'data' => null
+            );
+        }
+
+        // Prepare webhook data
+        $webhook_data = array(
+            'webhookUrl' => $webhook_url
+        );
+
+        // Make authenticated PUT request to register webhook
+        $endpoint = self::PIX_ENDPOINT . '/webhook/' . urlencode($pix_key);
+        $result = self::make_authenticated_request($endpoint, $webhook_data, 'PUT', self::PIX_SCOPE);
+
+        if ($result['success']) {
+            WC_Sicoob_Payment::log_message(
+                sprintf(__('Webhook PIX registrado com sucesso - Chave: %s, URL: %s', 'sicoob-payment'), $pix_key, $webhook_url),
+                'info'
+            );
+        } else {
+            WC_Sicoob_Payment::log_message(
+                sprintf(__('Erro ao registrar webhook PIX: %s', 'sicoob-payment'), $result['message']),
+                'error'
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * Unregister PIX webhook
+     *
+     * @param string $pix_key PIX key
+     * @return array
+     */
+    public static function unregister_pix_webhook($pix_key): array {
+        // Validate parameters
+        if (empty($pix_key)) {
+            return array(
+                'success' => false,
+                'message' => __('Chave PIX não fornecida.', 'sicoob-payment'),
+                'data' => null
+            );
+        }
+
+        // Make authenticated DELETE request to unregister webhook
+        $endpoint = self::PIX_ENDPOINT . '/webhook/' . urlencode($pix_key);
+        $result = self::make_authenticated_request($endpoint, array(), 'DELETE', self::PIX_SCOPE);
+
+        if ($result['success']) {
+            WC_Sicoob_Payment::log_message(
+                sprintf(__('Webhook PIX removido com sucesso - Chave: %s', 'sicoob-payment'), $pix_key),
+                'info'
+            );
+        } else {
+            WC_Sicoob_Payment::log_message(
+                sprintf(__('Erro ao remover webhook PIX: %s', 'sicoob-payment'), $result['message']),
+                'error'
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get PIX webhook status
+     *
+     * @param string $pix_key PIX key
+     * @return array
+     */
+    public static function get_pix_webhook_status($pix_key): array {
+        // Validate parameters
+        if (empty($pix_key)) {
+            return array(
+                'success' => false,
+                'message' => __('Chave PIX não fornecida.', 'sicoob-payment'),
+                'data' => null
+            );
+        }
+
+        // Make authenticated GET request to check webhook status
+        $endpoint = self::PIX_ENDPOINT . '/webhook/' . urlencode($pix_key);
+        $result = self::make_authenticated_request($endpoint, array(), 'GET', self::PIX_SCOPE);
+
+        if ($result['success']) {
+            WC_Sicoob_Payment::log_message(
+                sprintf(__('Status do webhook PIX consultado - Chave: %s', 'sicoob-payment'), $pix_key),
+                'info'
+            );
+        } else {
+            WC_Sicoob_Payment::log_message(
+                sprintf(__('Erro ao consultar status do webhook PIX: %s', 'sicoob-payment'), $result['message']),
+                'error'
+            );
+        }
+
+        return $result;
     }
 }

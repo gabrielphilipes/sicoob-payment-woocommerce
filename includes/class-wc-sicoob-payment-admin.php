@@ -25,6 +25,9 @@ class WC_Sicoob_Payment_Admin {
         add_action('wp_ajax_sicoob_test_pix_generation', array($this, 'ajax_test_pix_generation'));
         add_action('wp_ajax_sicoob_test_boleto_generation', array($this, 'ajax_test_boleto_generation'));
         add_action('wp_ajax_sicoob_test_boleto_email', array($this, 'ajax_test_boleto_email'));
+        add_action('wp_ajax_sicoob_register_webhook', array($this, 'ajax_register_webhook'));
+        add_action('wp_ajax_sicoob_unregister_webhook', array($this, 'ajax_unregister_webhook'));
+        add_action('wp_ajax_sicoob_check_webhook_status', array($this, 'ajax_check_webhook_status'));
     }
 
     /**
@@ -70,6 +73,9 @@ class WC_Sicoob_Payment_Admin {
                 'test_pix_nonce' => wp_create_nonce('sicoob_test_pix_generation'),
                 'test_boleto_nonce' => wp_create_nonce('sicoob_test_boleto_generation'),
                 'test_boleto_email_nonce' => wp_create_nonce('sicoob_test_boleto_email'),
+                'webhook_register_nonce' => wp_create_nonce('sicoob_register_webhook'),
+                'webhook_unregister_nonce' => wp_create_nonce('sicoob_unregister_webhook'),
+                'webhook_status_nonce' => wp_create_nonce('sicoob_check_webhook_status'),
             ));
         }
 
@@ -101,6 +107,9 @@ class WC_Sicoob_Payment_Admin {
                     'test_pix_nonce' => wp_create_nonce('sicoob_test_pix_generation'),
                     'test_boleto_nonce' => wp_create_nonce('sicoob_test_boleto_generation'),
                     'test_boleto_email_nonce' => wp_create_nonce('sicoob_test_boleto_email'),
+                    'webhook_register_nonce' => wp_create_nonce('sicoob_register_webhook'),
+                    'webhook_unregister_nonce' => wp_create_nonce('sicoob_unregister_webhook'),
+                    'webhook_status_nonce' => wp_create_nonce('sicoob_check_webhook_status'),
                 ));
             }
         }
@@ -972,6 +981,155 @@ class WC_Sicoob_Payment_Admin {
     }
 
     /**
+     * Register PIX webhook (AJAX action)
+     */
+    public function ajax_register_webhook() {
+        // Verificar nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'sicoob_register_webhook')) {
+            wp_die(__('Ação não autorizada.', 'sicoob-payment'));
+        }
+
+        // Verificar permissões
+        if (!current_user_can('manage_woocommerce')) {
+            wp_die(__('Você não tem permissão para realizar esta ação.', 'sicoob-payment'));
+        }
+
+        // Obter chave PIX das configurações
+        $pix_settings = WC_Sicoob_Payment_API::get_pix_gateway_settings();
+        $pix_key = $pix_settings['pix_key'];
+
+        if (empty($pix_key)) {
+            wp_send_json_error(array(
+                'message' => __('Chave PIX não configurada. Configure a chave PIX nas configurações do gateway.', 'sicoob-payment')
+            ));
+        }
+
+        // Gerar URL do webhook
+        $webhook_url = home_url('/webhook/sicoob');
+
+        // Log do registro iniciado
+        WC_Sicoob_Payment::log_message(
+            sprintf(__('Iniciando registro de webhook PIX - Chave: %s, URL: %s', 'sicoob-payment'), 
+                $pix_key, 
+                $webhook_url
+            ),
+            'info'
+        );
+
+        // Registrar webhook
+        $result = WC_Sicoob_Payment_API::register_pix_webhook($pix_key, $webhook_url);
+
+        // Preparar resposta
+        $response_data = array(
+            'pix_key' => $pix_key,
+            'webhook_url' => $webhook_url,
+            'timestamp' => current_time('mysql'),
+            'result' => $result
+        );
+
+        if ($result['success']) {
+            wp_send_json_success($response_data);
+        } else {
+            wp_send_json_error($response_data);
+        }
+    }
+
+    /**
+     * Unregister PIX webhook (AJAX action)
+     */
+    public function ajax_unregister_webhook() {
+        // Verificar nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'sicoob_unregister_webhook')) {
+            wp_die(__('Ação não autorizada.', 'sicoob-payment'));
+        }
+
+        // Verificar permissões
+        if (!current_user_can('manage_woocommerce')) {
+            wp_die(__('Você não tem permissão para realizar esta ação.', 'sicoob-payment'));
+        }
+
+        // Obter chave PIX das configurações
+        $pix_settings = WC_Sicoob_Payment_API::get_pix_gateway_settings();
+        $pix_key = $pix_settings['pix_key'];
+
+        if (empty($pix_key)) {
+            wp_send_json_error(array(
+                'message' => __('Chave PIX não configurada. Configure a chave PIX nas configurações do gateway.', 'sicoob-payment')
+            ));
+        }
+
+        // Log da remoção iniciada
+        WC_Sicoob_Payment::log_message(
+            sprintf(__('Iniciando remoção de webhook PIX - Chave: %s', 'sicoob-payment'), $pix_key),
+            'info'
+        );
+
+        // Remover webhook
+        $result = WC_Sicoob_Payment_API::unregister_pix_webhook($pix_key);
+
+        // Preparar resposta
+        $response_data = array(
+            'pix_key' => $pix_key,
+            'timestamp' => current_time('mysql'),
+            'result' => $result
+        );
+
+        if ($result['success']) {
+            wp_send_json_success($response_data);
+        } else {
+            wp_send_json_error($response_data);
+        }
+    }
+
+    /**
+     * Check PIX webhook status (AJAX action)
+     */
+    public function ajax_check_webhook_status() {
+        // Verificar nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'sicoob_check_webhook_status')) {
+            wp_die(__('Ação não autorizada.', 'sicoob-payment'));
+        }
+
+        // Verificar permissões
+        if (!current_user_can('manage_woocommerce')) {
+            wp_die(__('Você não tem permissão para realizar esta ação.', 'sicoob-payment'));
+        }
+
+        // Obter chave PIX das configurações
+        $pix_settings = WC_Sicoob_Payment_API::get_pix_gateway_settings();
+        $pix_key = $pix_settings['pix_key'];
+
+        if (empty($pix_key)) {
+            wp_send_json_error(array(
+                'message' => __('Chave PIX não configurada. Configure a chave PIX nas configurações do gateway.', 'sicoob-payment')
+            ));
+        }
+
+        // Log da consulta iniciada
+        WC_Sicoob_Payment::log_message(
+            sprintf(__('Consultando status do webhook PIX - Chave: %s', 'sicoob-payment'), $pix_key),
+            'info'
+        );
+
+        // Consultar status do webhook
+        $result = WC_Sicoob_Payment_API::get_pix_webhook_status($pix_key);
+
+        // Preparar resposta
+        $response_data = array(
+            'pix_key' => $pix_key,
+            'webhook_url' => home_url('/webhook/sicoob'),
+            'timestamp' => current_time('mysql'),
+            'result' => $result
+        );
+
+        if ($result['success']) {
+            wp_send_json_success($response_data);
+        } else {
+            wp_send_json_error($response_data);
+        }
+    }
+
+    /**
      * Display admin page
      */
     public function admin_page() {
@@ -1261,6 +1419,85 @@ class WC_Sicoob_Payment_Admin {
                                 <h4><?php _e('Resultado do Teste:', 'sicoob-payment'); ?></h4>
                                 <div class="sicoob-test-response">
                                     <pre id="api-response-content"></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bloco de Webhook PIX -->
+                <div class="sicoob-config-block">
+                    <div class="sicoob-config-block-header">
+                        <h2>
+                            <span class="dashicons dashicons-admin-links"></span>
+                            <?php _e('Webhook PIX', 'sicoob-payment'); ?>
+                        </h2>
+                    </div>
+                    
+                    <div class="sicoob-config-block-content">
+                        <div class="sicoob-webhook-section">
+                            <h3><?php _e('Configuração do Webhook PIX', 'sicoob-payment'); ?></h3>
+                            <p><?php _e('Configure o webhook para receber notificações automáticas de pagamentos PIX. O webhook deve aceitar apenas requisições POST na URL especificada.', 'sicoob-payment'); ?></p>
+                            
+                            <?php
+                            // Obter configurações PIX
+                            $pix_settings = WC_Sicoob_Payment_API::get_pix_gateway_settings();
+                            $pix_key = $pix_settings['pix_key'];
+                            $webhook_url = home_url('/webhook/sicoob');
+                            ?>
+                            
+                            <div class="sicoob-webhook-info">
+                                <div class="sicoob-webhook-url">
+                                    <label><?php _e('URL do Webhook:', 'sicoob-payment'); ?></label>
+                                    <div class="sicoob-url-display">
+                                        <code><?php echo esc_html($webhook_url); ?></code>
+                                        <button type="button" class="sicoob-copy-url-btn" data-url="<?php echo esc_attr($webhook_url); ?>">
+                                            <span class="dashicons dashicons-admin-page"></span>
+                                            <?php _e('Copiar', 'sicoob-payment'); ?>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <?php if (empty($pix_key)): ?>
+                                    <div class="sicoob-webhook-warning">
+                                        <span class="dashicons dashicons-warning"></span>
+                                        <p><?php _e('Chave PIX não configurada. Configure a chave PIX nas configurações do gateway PIX para poder usar o webhook.', 'sicoob-payment'); ?></p>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                            
+                            <div class="sicoob-webhook-actions">
+                                <button type="button" id="check-webhook-status" class="sicoob-btn sicoob-btn-secondary" <?php echo empty($pix_key) ? 'disabled' : ''; ?>>
+                                    <span class="dashicons dashicons-visibility"></span>
+                                    <?php _e('Verificar Status', 'sicoob-payment'); ?>
+                                </button>
+                                
+                                <button type="button" id="register-webhook" class="sicoob-btn sicoob-btn-primary" <?php echo empty($pix_key) ? 'disabled' : ''; ?>>
+                                    <span class="dashicons dashicons-admin-links"></span>
+                                    <?php _e('Vincular Webhook', 'sicoob-payment'); ?>
+                                </button>
+                                
+                                <button type="button" id="unregister-webhook" class="sicoob-btn sicoob-btn-danger" <?php echo empty($pix_key) ? 'disabled' : ''; ?>>
+                                    <span class="dashicons dashicons-trash"></span>
+                                    <?php _e('Desvincular Webhook', 'sicoob-payment'); ?>
+                                </button>
+                            </div>
+                            
+                            <div id="webhook-status-display" class="sicoob-webhook-status" style="display: none;">
+                                <h4><?php _e('Status do Webhook:', 'sicoob-payment'); ?></h4>
+                                <div class="sicoob-status-content">
+                                    <div class="sicoob-status-indicator">
+                                        <span class="sicoob-status-icon"></span>
+                                        <span class="sicoob-status-text"></span>
+                                    </div>
+                                    <div class="sicoob-status-details"></div>
+                                </div>
+                            </div>
+                            
+                            <div id="webhook-test-results" class="sicoob-test-results" style="display: none;">
+                                <h4><?php _e('Resultado da Operação:', 'sicoob-payment'); ?></h4>
+                                <div class="sicoob-test-response">
+                                    <pre id="webhook-response-content"></pre>
                                 </div>
                             </div>
                         </div>
