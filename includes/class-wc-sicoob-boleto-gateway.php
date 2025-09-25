@@ -177,6 +177,58 @@ class WC_Sicoob_Boleto_Gateway extends WC_Payment_Gateway {
             );
         }
 
+        // Get boleto settings
+        $account_number = $this->get_option('account_number');
+        $contract_number = $this->get_option('contract_number');
+
+        // Validate boleto settings
+        if (empty($account_number) || empty($contract_number)) {
+            wc_add_notice(__('Configurações do boleto não estão completas. Entre em contato com o administrador.', 'sicoob-payment'), 'error');
+            return array(
+                'result' => 'failure',
+                'redirect' => ''
+            );
+        }
+
+        // Prepare order data for boleto creation
+        $order_data = array(
+            'order_id' => $order_id,
+            'cpf' => $this->get_customer_cpf($order),
+            'nome' => $this->get_customer_name($order),
+            'valor' => $order->get_total(),
+            'endereco' => $this->get_customer_address($order),
+            'bairro' => $this->get_customer_neighborhood($order),
+            'cidade' => $this->get_customer_city($order),
+            'cep' => $this->get_customer_postcode($order),
+            'uf' => $this->get_customer_state($order),
+            'email' => $order->get_billing_email()
+        );
+
+        // Create boleto
+        $boleto_result = WC_Sicoob_Payment_API::create_boleto($order_data);
+
+        if (!$boleto_result['success']) {
+            wc_add_notice(
+                sprintf(__('Erro ao gerar boleto: %s', 'sicoob-payment'), $boleto_result['message']),
+                'error'
+            );
+            return array(
+                'result' => 'failure',
+                'redirect' => ''
+            );
+        }
+
+        // Store boleto data in order meta
+        $boleto_data = $boleto_result['data'];
+        $order->update_meta_data('_sicoob_boleto_nosso_numero', $boleto_data['nosso_numero'] ?? '');
+        $order->update_meta_data('_sicoob_boleto_seu_numero', $boleto_data['seu_numero'] ?? '');
+        $order->update_meta_data('_sicoob_boleto_linha_digitavel', $boleto_data['linha_digitavel'] ?? '');
+        $order->update_meta_data('_sicoob_boleto_valor', $boleto_data['valor'] ?? 0);
+        $order->update_meta_data('_sicoob_boleto_data_vencimento', $boleto_data['data_vencimento'] ?? '');
+        $order->update_meta_data('_sicoob_boleto_data_emissao', $boleto_data['data_emissao'] ?? '');
+        $order->update_meta_data('_sicoob_boleto_pdf_url', $boleto_data['pdf_saved']['file_url'] ?? '');
+        $order->save();
+
         // Mark order as pending
         $order->update_status('pending', __('Aguardando pagamento via boleto.', 'sicoob-payment'));
 
@@ -200,6 +252,156 @@ class WC_Sicoob_Boleto_Gateway extends WC_Payment_Gateway {
             return false;
         }
 
+        // Check if required boleto fields are configured
+        $account_number = $this->get_option('account_number');
+        $contract_number = $this->get_option('contract_number');
+
+        if (empty($account_number) || empty($contract_number)) {
+            return false;
+        }
+
         return true;
+    }
+
+    /**
+     * Get customer CPF from order
+     *
+     * @param WC_Order $order Order object
+     * @return string
+     */
+    private function get_customer_cpf($order) {
+        // Try to get CPF from billing meta
+        $cpf = $order->get_meta('_billing_cpf');
+        
+        if (empty($cpf)) {
+            // Try to get CPF from billing meta with different key
+            $cpf = $order->get_meta('billing_cpf');
+        }
+        
+        if (empty($cpf)) {
+            // Try to get CPF from customer meta
+            $customer_id = $order->get_customer_id();
+            if ($customer_id) {
+                $cpf = get_user_meta($customer_id, 'billing_cpf', true);
+            }
+        }
+        
+        // If still empty, try to extract from billing address
+        if (empty($cpf)) {
+            $cpf = '00000000000'; // Default fallback
+        }
+        
+        return $cpf;
+    }
+
+    /**
+     * Get customer name from order
+     *
+     * @param WC_Order $order Order object
+     * @return string
+     */
+    private function get_customer_name($order) {
+        $first_name = $order->get_billing_first_name();
+        $last_name = $order->get_billing_last_name();
+        
+        $name = trim($first_name . ' ' . $last_name);
+        
+        // If billing name is empty, try shipping name
+        if (empty($name)) {
+            $first_name = $order->get_shipping_first_name();
+            $last_name = $order->get_shipping_last_name();
+            $name = trim($first_name . ' ' . $last_name);
+        }
+        
+        // If still empty, use customer display name
+        if (empty($name)) {
+            $name = $order->get_customer_note() ?: __('Cliente', 'sicoob-payment');
+        }
+        
+        return $name;
+    }
+
+    /**
+     * Get customer address from order
+     *
+     * @param WC_Order $order Order object
+     * @return string
+     */
+    private function get_customer_address($order) {
+        $address = $order->get_billing_address_1();
+        
+        if (empty($address)) {
+            $address = $order->get_shipping_address_1();
+        }
+        
+        return $address ?: '';
+    }
+
+    /**
+     * Get customer neighborhood from order
+     *
+     * @param WC_Order $order Order object
+     * @return string
+     */
+    private function get_customer_neighborhood($order) {
+        $neighborhood = $order->get_meta('_billing_neighborhood');
+        
+        if (empty($neighborhood)) {
+            $neighborhood = $order->get_meta('billing_neighborhood');
+        }
+        
+        if (empty($neighborhood)) {
+            $neighborhood = $order->get_meta('_shipping_neighborhood');
+        }
+        
+        return $neighborhood ?: '';
+    }
+
+    /**
+     * Get customer city from order
+     *
+     * @param WC_Order $order Order object
+     * @return string
+     */
+    private function get_customer_city($order) {
+        $city = $order->get_billing_city();
+        
+        if (empty($city)) {
+            $city = $order->get_shipping_city();
+        }
+        
+        return $city ?: '';
+    }
+
+    /**
+     * Get customer postcode from order
+     *
+     * @param WC_Order $order Order object
+     * @return string
+     */
+    private function get_customer_postcode($order) {
+        $postcode = $order->get_billing_postcode();
+        
+        if (empty($postcode)) {
+            $postcode = $order->get_shipping_postcode();
+        }
+        
+        return $postcode ?: '';
+    }
+
+    /**
+     * Get customer state from order
+     *
+     * @param WC_Order $order Order object
+     * @return string
+     */
+    private function get_customer_state($order) {
+        $state = $order->get_billing_state();
+        
+        if (empty($state)) {
+            $state = $order->get_shipping_state();
+        }
+        
+        return $state ?: '';
     }
 }

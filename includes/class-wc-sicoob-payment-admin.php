@@ -23,6 +23,7 @@ class WC_Sicoob_Payment_Admin {
         add_action('wp_ajax_sicoob_remove_certificate', array($this, 'ajax_remove_certificate'));
         add_action('wp_ajax_sicoob_test_api', array($this, 'ajax_test_api'));
         add_action('wp_ajax_sicoob_test_pix_generation', array($this, 'ajax_test_pix_generation'));
+        add_action('wp_ajax_sicoob_test_boleto_generation', array($this, 'ajax_test_boleto_generation'));
     }
 
     /**
@@ -66,6 +67,7 @@ class WC_Sicoob_Payment_Admin {
                 'nonce' => wp_create_nonce('sicoob_remove_certificate'),
                 'test_api_nonce' => wp_create_nonce('sicoob_test_api'),
                 'test_pix_nonce' => wp_create_nonce('sicoob_test_pix_generation'),
+                'test_boleto_nonce' => wp_create_nonce('sicoob_test_boleto_generation'),
             ));
         }
 
@@ -95,6 +97,7 @@ class WC_Sicoob_Payment_Admin {
                     'nonce' => wp_create_nonce('sicoob_remove_certificate'),
                     'test_api_nonce' => wp_create_nonce('sicoob_test_api'),
                     'test_pix_nonce' => wp_create_nonce('sicoob_test_pix_generation'),
+                    'test_boleto_nonce' => wp_create_nonce('sicoob_test_boleto_generation'),
                 ));
             }
         }
@@ -525,6 +528,91 @@ class WC_Sicoob_Payment_Admin {
     }
 
     /**
+     * Test Boleto generation (AJAX action)
+     * 
+     * Testa a geração de boleto usando dados fictícios para validar
+     * a configuração e comunicação com a API do Sicoob.
+     */
+    public function ajax_test_boleto_generation() {
+        // Verificar nonce de segurança
+        if (!wp_verify_nonce($_POST['nonce'], 'sicoob_test_boleto_generation')) {
+            wp_die(__('Ação não autorizada.', 'sicoob-payment'));
+        }
+
+        // Verificar permissões do usuário
+        if (!current_user_can('manage_woocommerce')) {
+            wp_die(__('Você não tem permissão para realizar esta ação.', 'sicoob-payment'));
+        }
+
+        // Obter configurações do gateway Boleto
+        $boleto_settings = WC_Sicoob_Payment_API::get_boleto_gateway_settings();
+        
+        // Validar configurações obrigatórias
+        $validation_result = $this->validate_boleto_settings($boleto_settings);
+        if (!$validation_result['valid']) {
+            wp_send_json_error(array(
+                'message' => $validation_result['message'],
+                'settings' => $boleto_settings,
+                'missing_fields' => $validation_result['missing_fields']
+            ));
+        }
+
+        // Gerar dados de teste realistas
+        $test_data = $this->generate_random_boleto_test_data();
+        
+        // Preparar informações da requisição para debug
+        $request_info = array(
+            'test_data' => $test_data,
+            'boleto_settings' => $this->sanitize_boleto_settings_for_display($boleto_settings),
+            'timestamp' => current_time('mysql'),
+            'endpoint' => WC_Sicoob_Payment_API::BOLETO_ENDPOINT,
+            'test_type' => 'boleto_generation'
+        );
+
+        // Log do teste iniciado
+        WC_Sicoob_Payment::log_message(
+            sprintf(__('Iniciando teste de geração de boleto - Pedido: %s, Cliente: %s', 'sicoob-payment'), 
+                $test_data['order_id'], 
+                $test_data['nome']
+            ),
+            'info'
+        );
+
+        // Executar teste de geração de Boleto
+        $result = WC_Sicoob_Payment_API::create_boleto($test_data);
+
+        // Log do resultado
+        if ($result['success']) {
+            WC_Sicoob_Payment::log_message(
+                sprintf(__('Teste de boleto bem-sucedido - Nosso Número: %s', 'sicoob-payment'), 
+                    $result['data']['nosso_numero'] ?? 'N/A'
+                ),
+                'info'
+            );
+        } else {
+            WC_Sicoob_Payment::log_message(
+                sprintf(__('Teste de boleto falhou: %s', 'sicoob-payment'), $result['message']),
+                'error'
+            );
+        }
+
+        // Preparar resposta estruturada
+        $response_data = array(
+            'request_info' => $request_info,
+            'result' => $result,
+            'success' => $result['success'],
+            'test_summary' => $this->generate_boleto_test_summary($result, $test_data)
+        );
+
+        // Retornar resposta apropriada
+        if ($result['success']) {
+            wp_send_json_success($response_data);
+        } else {
+            wp_send_json_error($response_data);
+        }
+    }
+
+    /**
      * Generate random test data for PIX
      *
      * @return array
@@ -549,6 +637,186 @@ class WC_Sicoob_Payment_Admin {
             'cpf' => $cpf,
             'nome' => $nomes[array_rand($nomes)],
             'valor' => $valor
+        );
+    }
+
+    /**
+     * Validate boleto gateway settings
+     *
+     * @param array $settings Boleto gateway settings
+     * @return array Validation result
+     */
+    private function validate_boleto_settings($settings) {
+        $missing_fields = array();
+        
+        if (empty($settings['account_number'])) {
+            $missing_fields[] = __('Número da Conta Corrente', 'sicoob-payment');
+        }
+        
+        if (empty($settings['contract_number'])) {
+            $missing_fields[] = __('Número do Contrato', 'sicoob-payment');
+        }
+        
+        if (!empty($missing_fields)) {
+            return array(
+                'valid' => false,
+                'message' => sprintf(
+                    __('Configurações do Boleto incompletas. Campos obrigatórios: %s', 'sicoob-payment'),
+                    implode(', ', $missing_fields)
+                ),
+                'missing_fields' => $missing_fields
+            );
+        }
+        
+        return array('valid' => true);
+    }
+
+    /**
+     * Sanitize boleto settings for display (hide sensitive data)
+     *
+     * @param array $settings Raw boleto settings
+     * @return array Sanitized settings
+     */
+    private function sanitize_boleto_settings_for_display($settings) {
+        $sanitized = $settings;
+        
+        // Mascarar dados sensíveis
+        if (!empty($sanitized['account_number'])) {
+            $account = $sanitized['account_number'];
+            $sanitized['account_number'] = substr($account, 0, 2) . str_repeat('*', strlen($account) - 4) . substr($account, -2);
+        }
+        
+        if (!empty($sanitized['contract_number'])) {
+            $contract = $sanitized['contract_number'];
+            $sanitized['contract_number'] = substr($contract, 0, 2) . str_repeat('*', strlen($contract) - 4) . substr($contract, -2);
+        }
+        
+        return $sanitized;
+    }
+
+    /**
+     * Generate test summary for boleto generation
+     *
+     * @param array $result API result
+     * @param array $test_data Test data used
+     * @return array Test summary
+     */
+    private function generate_boleto_test_summary($result, $test_data) {
+        $summary = array(
+            'test_type' => 'boleto_generation',
+            'test_data_used' => array(
+                'order_id' => $test_data['order_id'],
+                'cpf' => substr($test_data['cpf'], 0, 3) . '.***.**' . substr($test_data['cpf'], -2),
+                'nome' => $test_data['nome'],
+                'valor' => 'R$ ' . number_format($test_data['valor'], 2, ',', '.')
+            ),
+            'api_response' => array(
+                'success' => $result['success'],
+                'message' => $result['message']
+            )
+        );
+        
+        if ($result['success'] && isset($result['data'])) {
+            $summary['generated_boleto'] = array(
+                'nosso_numero' => $result['data']['nosso_numero'] ?? 'N/A',
+                'linha_digitavel' => $result['data']['linha_digitavel'] ?? 'N/A',
+                'valor' => 'R$ ' . number_format($result['data']['valor'] ?? 0, 2, ',', '.'),
+                'data_vencimento' => $result['data']['data_vencimento'] ?? 'N/A',
+                'pdf_generated' => isset($result['data']['pdf_saved']) && $result['data']['pdf_saved']['success']
+            );
+        }
+        
+        return $summary;
+    }
+
+    /**
+     * Generate random test data for Boleto
+     * 
+     * Gera dados de teste realistas para validação da geração de boleto.
+     * Utiliza dados fictícios mas válidos para testes.
+     *
+     * @return array Test data for boleto generation
+     */
+    private function generate_random_boleto_test_data() {
+        // CPF válido para testes (não real)
+        $cpf = '73371160041';
+        
+        $nomes = array(
+            'João Silva Santos',
+            'Maria Oliveira Costa',
+            'Pedro Almeida Lima',
+            'Ana Paula Rodrigues',
+            'Carlos Eduardo Ferreira',
+            'Lucia Helena Souza',
+            'Roberto Carlos Mendes',
+            'Fernanda Beatriz Alves'
+        );
+        
+        $enderecos = array(
+            'Rua das Flores, 123',
+            'Avenida Brasil, 456',
+            'Rua da Paz, 789',
+            'Alameda dos Anjos, 321',
+            'Rua do Comércio, 654'
+        );
+        
+        $bairros = array(
+            'Centro',
+            'Vila Nova',
+            'Jardim das Américas',
+            'Boa Vista',
+            'Industrial'
+        );
+        
+        $cidades = array(
+            'São Paulo',
+            'Rio de Janeiro',
+            'Belo Horizonte',
+            'Salvador',
+            'Brasília'
+        );
+        
+        $ceps = array(
+            '01234567',
+            '12345678',
+            '23456789',
+            '34567890',
+            '45678901'
+        );
+        
+        $ufs = array(
+            'SP',
+            'RJ',
+            'MG',
+            'BA',
+            'DF'
+        );
+        
+        $emails = array(
+            'teste1@exemplo.com',
+            'teste2@exemplo.com',
+            'teste3@exemplo.com',
+            'teste4@exemplo.com',
+            'teste5@exemplo.com'
+        );
+        
+        // Valor mínimo para teste (R$ 0,01)
+        $valor = 0.01;
+        
+        // ID único baseado em timestamp
+        $order_id = 'TEST-' . time();
+        
+        return array(
+            'order_id' => $order_id,
+            'cpf' => $cpf,
+            'nome' => $nomes[array_rand($nomes)],
+            'valor' => $valor,
+            'endereco' => $enderecos[array_rand($enderecos)],
+            'bairro' => $bairros[array_rand($bairros)],
+            'cidade' => $cidades[array_rand($cidades)],
+            'cep' => $ceps[array_rand($ceps)],
+            'uf' => $ufs[array_rand($ufs)],
+            'email' => $emails[array_rand($emails)]
         );
     }
 
@@ -830,6 +1098,11 @@ class WC_Sicoob_Payment_Admin {
                                 <button type="button" id="test-pix-generation" class="sicoob-btn sicoob-btn-primary">
                                     <span class="dashicons dashicons-money-alt"></span>
                                     <?php _e('Testar Geração PIX', 'sicoob-payment'); ?>
+                                </button>
+                                
+                                <button type="button" id="test-boleto-generation" class="sicoob-btn sicoob-btn-primary">
+                                    <span class="dashicons dashicons-media-document"></span>
+                                    <?php _e('Testar Geração Boleto', 'sicoob-payment'); ?>
                                 </button>
                             </div>
                             

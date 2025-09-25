@@ -253,6 +253,11 @@ jQuery(document).ready(function ($) {
     testPixGeneration();
   });
 
+  // Teste de Geração Boleto
+  $("#test-boleto-generation").on("click", function () {
+    testBoletoGeneration();
+  });
+
   // Validação e contador para descrição do PIX
   function initPixDescriptionValidation() {
     var $pixDescriptionField = $(
@@ -710,6 +715,197 @@ jQuery(document).ready(function ($) {
         $btn.removeClass("sicoob-loading").prop("disabled", false);
         $btn.html(
           '<span class="dashicons dashicons-money-alt"></span> Testar Geração PIX'
+        );
+      },
+    });
+  }
+
+  /**
+   * Test Boleto generation function
+   *
+   * Executes a test boleto generation using the Sicoob API
+   * with realistic test data to validate configuration and connectivity.
+   */
+  function testBoletoGeneration() {
+    var $btn = $("#test-boleto-generation");
+    var $results = $("#api-test-results");
+    var $content = $("#api-response-content");
+
+    // Validate required parameters
+    if (!sicoob_payment_params || !sicoob_payment_params.test_boleto_nonce) {
+      alert("Parâmetros de teste não configurados corretamente.");
+      return;
+    }
+
+    // Set loading state
+    $btn.addClass("sicoob-loading").prop("disabled", true);
+    $btn.html(
+      '<span class="dashicons dashicons-update"></span> Testando Geração Boleto...'
+    );
+
+    // Execute AJAX request with timeout
+    $.ajax({
+      url: sicoob_payment_params.ajax_url,
+      type: "POST",
+      timeout: 30000, // 30 seconds timeout
+      data: {
+        action: "sicoob_test_boleto_generation",
+        nonce: sicoob_payment_params.test_boleto_nonce,
+      },
+      success: function (response) {
+        var resultText = "";
+
+        if (response.success) {
+          resultText += "=== ✅ TESTE DE GERAÇÃO BOLETO - SUCESSO ===\n\n";
+
+          // Test summary
+          if (response.data.test_summary) {
+            resultText += "=== 📋 RESUMO DO TESTE ===\n";
+            resultText +=
+              "Tipo: " +
+              (response.data.test_summary.test_type || "boleto_generation") +
+              "\n";
+            resultText += "Status: SUCESSO\n";
+            resultText +=
+              "Timestamp: " +
+              (response.data.request_info.timestamp || "N/A") +
+              "\n\n";
+          }
+
+          // Test data used (sanitized)
+          resultText += "=== 🧪 DADOS DE TESTE UTILIZADOS ===\n";
+          if (
+            response.data.test_summary &&
+            response.data.test_summary.test_data_used
+          ) {
+            var testData = response.data.test_summary.test_data_used;
+            resultText +=
+              "ID do Pedido: " + (testData.order_id || "N/A") + "\n";
+            resultText += "CPF: " + (testData.cpf || "N/A") + "\n";
+            resultText += "Nome: " + (testData.nome || "N/A") + "\n";
+            resultText += "Valor: " + (testData.valor || "N/A") + "\n\n";
+          } else {
+            resultText +=
+              JSON.stringify(response.data.request_info.test_data, null, 2) +
+              "\n\n";
+          }
+
+          // Boleto settings (sanitized)
+          resultText += "=== ⚙️ CONFIGURAÇÕES DO BOLETO ===\n";
+          resultText +=
+            JSON.stringify(
+              response.data.request_info.boleto_settings,
+              null,
+              2
+            ) + "\n\n";
+
+          // API endpoint
+          resultText += "=== 🌐 ENDPOINT UTILIZADO ===\n";
+          resultText += response.data.request_info.endpoint + "\n\n";
+
+          resultText += "=== 📄 RESULTADO DA GERAÇÃO ===\n";
+          resultText += JSON.stringify(response.data.result, null, 2) + "\n\n";
+
+          if (response.data.result.success && response.data.result.data) {
+            resultText += "=== 🎫 DADOS DO BOLETO GERADO ===\n";
+            var boletoData = response.data.result.data;
+
+            resultText +=
+              "Nosso Número: " + (boletoData.nosso_numero || "N/A") + "\n";
+            resultText +=
+              "Seu Número: " + (boletoData.seu_numero || "N/A") + "\n";
+            resultText +=
+              "Código de Barras: " + (boletoData.codigo_barras || "N/A") + "\n";
+            resultText +=
+              "Linha Digitável: " +
+              (boletoData.linha_digitavel || "N/A") +
+              "\n";
+            resultText += "Valor: R$ " + (boletoData.valor || "N/A") + "\n";
+            resultText +=
+              "Data Vencimento: " +
+              (boletoData.data_vencimento || "N/A") +
+              "\n";
+            resultText +=
+              "Data Emissão: " + (boletoData.data_emissao || "N/A") + "\n";
+            resultText +=
+              "QR Code: " +
+              (boletoData.qr_code ? "✅ Gerado" : "❌ N/A") +
+              "\n";
+
+            // PDF information
+            if (boletoData.pdf_saved && boletoData.pdf_saved.success) {
+              resultText += "PDF: ✅ Gerado com sucesso\n";
+              resultText +=
+                "URL: " + (boletoData.pdf_saved.file_url || "N/A") + "\n";
+              resultText +=
+                "Tamanho: " +
+                (boletoData.pdf_saved.file_size || "N/A") +
+                " bytes\n";
+            } else {
+              resultText += "PDF: ❌ Não gerado\n";
+            }
+
+            resultText += "\n=== 👤 DADOS DO PAGADOR ===\n";
+            resultText += JSON.stringify(boletoData.pagador, null, 2) + "\n\n";
+
+            resultText += "=== 📝 MENSAGENS DE INSTRUÇÃO ===\n";
+            resultText +=
+              JSON.stringify(boletoData.mensagens_instrucao, null, 2) + "\n\n";
+          }
+
+          resultText += "=== RESPOSTA COMPLETA ===\n";
+          resultText += JSON.stringify(response, null, 2);
+        } else {
+          resultText += "=== ❌ TESTE DE GERAÇÃO BOLETO - ERRO ===\n\n";
+          resultText +=
+            "Erro: " + (response.data.message || "Erro desconhecido") + "\n\n";
+
+          if (
+            response.data.missing_fields &&
+            response.data.missing_fields.length > 0
+          ) {
+            resultText += "=== ⚠️ CAMPOS OBRIGATÓRIOS FALTANDO ===\n";
+            response.data.missing_fields.forEach(function (field) {
+              resultText += "- " + field + "\n";
+            });
+            resultText += "\n";
+          }
+
+          resultText += "=== 🧪 DADOS DE TESTE ===\n";
+          resultText +=
+            JSON.stringify(response.data.request_info.test_data, null, 2) +
+            "\n\n";
+
+          resultText += "=== ⚙️ CONFIGURAÇÕES BOLETO ===\n";
+          resultText +=
+            JSON.stringify(
+              response.data.request_info.boleto_settings,
+              null,
+              2
+            ) + "\n\n";
+
+          resultText += "=== 📄 RESPOSTA COMPLETA ===\n";
+          resultText += JSON.stringify(response, null, 2);
+        }
+
+        $content.text(resultText);
+        $results.show();
+      },
+      error: function (xhr, status, error) {
+        var errorText = "=== 🚫 ERRO DE COMUNICAÇÃO ===\n\n";
+        errorText += "Status: " + status + "\n";
+        errorText += "Erro: " + error + "\n";
+        errorText += "Código HTTP: " + (xhr.status || "N/A") + "\n";
+        errorText += "Resposta: " + (xhr.responseText || "N/A") + "\n\n";
+        errorText += "Verifique sua conexão com a internet e tente novamente.";
+        $content.text(errorText);
+        $results.show();
+      },
+      complete: function () {
+        // Reset button state
+        $btn.removeClass("sicoob-loading").prop("disabled", false);
+        $btn.html(
+          '<span class="dashicons dashicons-media-document"></span> Testar Geração Boleto'
         );
       },
     });

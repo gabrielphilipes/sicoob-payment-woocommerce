@@ -369,6 +369,234 @@ class WC_Sicoob_Payment_API {
     }
 
     /**
+     * Create Boleto
+     *
+     * @param array $order_data Order data with customer information
+     * @return array
+     */
+    public static function create_boleto($order_data): array {
+        // Get boleto gateway settings
+        $boleto_settings = self::get_boleto_gateway_settings();
+        
+        // Validate required settings
+        if (empty($boleto_settings['account_number'])) {
+            return array(
+                'success' => false,
+                'message' => __('Número da conta corrente não configurado.', 'sicoob-payment'),
+                'data' => null
+            );
+        }
+
+        if (empty($boleto_settings['contract_number'])) {
+            return array(
+                'success' => false,
+                'message' => __('Número do contrato não configurado.', 'sicoob-payment'),
+                'data' => null
+            );
+        }
+
+        // Validate order data
+        if (empty($order_data['cpf']) || empty($order_data['nome']) || empty($order_data['valor']) || empty($order_data['order_id'])) {
+            return array(
+                'success' => false,
+                'message' => __('Dados do pedido incompletos (CPF, nome, valor ou ID do pedido).', 'sicoob-payment'),
+                'data' => null
+            );
+        }
+
+        // Calculate dates
+        $current_date = date('Y-m-d');
+        $due_date = date('Y-m-d', strtotime('+' . $boleto_settings['due_days'] . ' days'));
+
+        // Prepare boleto data according to Sicoob API specification
+        $boleto_data = array(
+            'numeroCliente' => intval($boleto_settings['contract_number']),
+            'codigoModalidade' => 1,
+            'numeroContaCorrente' => intval($boleto_settings['account_number']),
+            'codigoEspecieDocumento' => 'DM',
+            'dataEmissao' => $current_date,
+            'seuNumero' => strval($order_data['order_id']),
+            'identificacaoEmissaoBoleto' => 1,
+            'identificacaoDistribuicaoBoleto' => 1,
+            'valor' => floatval($order_data['valor']),
+            'dataVencimento' => $due_date,
+            'dataLimitePagamento' => $due_date,
+            'tipoDesconto' => 0,
+            'tipoMulta' => 0,
+            'tipoJurosMora' => 3,
+            'numeroParcela' => 1,
+            'pagador' => array(
+                'numeroCpfCnpj' => preg_replace('/[^0-9]/', '', $order_data['cpf']), // Only numbers
+                'nome' => sanitize_text_field($order_data['nome']),
+                'endereco' => sanitize_text_field($order_data['endereco'] ?? ''),
+                'bairro' => sanitize_text_field($order_data['bairro'] ?? ''),
+                'cidade' => sanitize_text_field($order_data['cidade'] ?? ''),
+                'cep' => preg_replace('/[^0-9]/', '', $order_data['cep'] ?? ''),
+                'uf' => sanitize_text_field($order_data['uf'] ?? ''),
+                'email' => sanitize_email($order_data['email'] ?? '')
+            ),
+            'mensagensInstrucao' => array_filter(array(
+                sanitize_text_field($boleto_settings['instruction_1'] ?? ''),
+                sanitize_text_field($boleto_settings['instruction_2'] ?? ''),
+                sanitize_text_field($boleto_settings['instruction_3'] ?? ''),
+                sanitize_text_field($boleto_settings['instruction_4'] ?? ''),
+                sanitize_text_field($boleto_settings['instruction_5'] ?? '')
+            )),
+            'gerarPdf' => true,
+            'codigoCadastrarPIX' => 1
+        );
+
+        // Log boleto creation attempt
+        WC_Sicoob_Payment::log_message(
+            sprintf(
+                __('Criando Boleto - Cliente: %s, CPF: %s, Valor: %s, Pedido: %s', 'sicoob-payment'),
+                $boleto_data['pagador']['nome'],
+                $boleto_data['pagador']['numeroCpfCnpj'],
+                $boleto_data['valor'],
+                $boleto_data['seuNumero']
+            ),
+            'info'
+        );
+
+        // Make authenticated request to create boleto
+        $endpoint = self::BOLETO_ENDPOINT;
+        $result = self::make_authenticated_request($endpoint, $boleto_data, 'POST', self::BOLETO_SCOPE);
+
+        if ($result['success']) {
+            // Process successful response
+            $processed_result = self::process_boleto_response($result['data'], $order_data['order_id']);
+            
+            WC_Sicoob_Payment::log_message(
+                sprintf(__('Boleto criado com sucesso - Nosso Número: %s', 'sicoob-payment'), 
+                    $processed_result['data']['nosso_numero'] ?? 'N/A'),
+                'info'
+            );
+            
+            return $processed_result;
+        } else {
+            WC_Sicoob_Payment::log_message(
+                sprintf(__('Erro ao criar boleto: %s', 'sicoob-payment'), $result['message']),
+                'error'
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * Process boleto response from Sicoob API
+     *
+     * @param array $api_response Raw API response
+     * @param string $order_id Order ID
+     * @return array
+     */
+    public static function process_boleto_response($api_response, $order_id): array {
+        if (!isset($api_response['resultado'])) {
+            return array(
+                'success' => false,
+                'message' => __('Resposta da API inválida.', 'sicoob-payment'),
+                'data' => $api_response
+            );
+        }
+
+        $boleto_data = $api_response['resultado'];
+
+        // Extract important data
+        $processed_data = array(
+            'order_id' => $order_id,
+            'nosso_numero' => $boleto_data['nossoNumero'] ?? '',
+            'seu_numero' => $boleto_data['seuNumero'] ?? '',
+            'codigo_barras' => $boleto_data['codigoBarras'] ?? '',
+            'linha_digitavel' => $boleto_data['linhaDigitavel'] ?? '',
+            'valor' => $boleto_data['valor'] ?? 0,
+            'data_vencimento' => $boleto_data['dataVencimento'] ?? '',
+            'data_emissao' => $boleto_data['dataEmissao'] ?? '',
+            'pdf_base64' => $boleto_data['pdfBoleto'] ?? '',
+            'qr_code' => $boleto_data['qrCode'] ?? '',
+            'pagador' => $boleto_data['pagador'] ?? array(),
+            'mensagens_instrucao' => $boleto_data['mensagensInstrucao'] ?? array(),
+            'raw_response' => $boleto_data
+        );
+
+        // Save PDF to file if base64 is provided
+        if (!empty($processed_data['pdf_base64'])) {
+            $pdf_saved = self::save_boleto_pdf($processed_data['pdf_base64'], $order_id);
+            $processed_data['pdf_saved'] = $pdf_saved;
+        }
+
+        return array(
+            'success' => true,
+            'message' => __('Boleto criado com sucesso.', 'sicoob-payment'),
+            'data' => $processed_data
+        );
+    }
+
+    /**
+     * Save boleto PDF from base64
+     *
+     * @param string $pdf_base64 Base64 encoded PDF
+     * @param string $order_id Order ID
+     * @return array
+     */
+    public static function save_boleto_pdf($pdf_base64, $order_id): array {
+        try {
+            // Decode base64
+            $pdf_content = base64_decode($pdf_base64);
+            
+            if ($pdf_content === false) {
+                return array(
+                    'success' => false,
+                    'message' => __('Erro ao decodificar PDF do boleto.', 'sicoob-payment')
+                );
+            }
+
+            // Create uploads directory for boleto PDFs
+            $upload_dir = wp_upload_dir();
+            $boleto_dir = $upload_dir['basedir'] . '/sicoob-boletos';
+            
+            if (!file_exists($boleto_dir)) {
+                wp_mkdir_p($boleto_dir);
+            }
+
+            // Generate filename
+            $filename = 'boleto-' . $order_id . '-' . date('Y-m-d-H-i-s') . '.pdf';
+            $file_path = $boleto_dir . '/' . $filename;
+
+            // Save file
+            $saved = file_put_contents($file_path, $pdf_content);
+            
+            if ($saved === false) {
+                return array(
+                    'success' => false,
+                    'message' => __('Erro ao salvar PDF do boleto.', 'sicoob-payment')
+                );
+            }
+
+            // Get file URL
+            $file_url = $upload_dir['baseurl'] . '/sicoob-boletos/' . $filename;
+
+            return array(
+                'success' => true,
+                'message' => __('PDF do boleto salvo com sucesso.', 'sicoob-payment'),
+                'file_path' => $file_path,
+                'file_url' => $file_url,
+                'file_size' => $saved
+            );
+
+        } catch (Exception $e) {
+            WC_Sicoob_Payment::log_message(
+                sprintf(__('Erro ao salvar PDF do boleto: %s', 'sicoob-payment'), $e->getMessage()),
+                'error'
+            );
+
+            return array(
+                'success' => false,
+                'message' => sprintf(__('Erro ao salvar PDF: %s', 'sicoob-payment'), $e->getMessage())
+            );
+        }
+    }
+
+    /**
      * Get PIX gateway settings
      *
      * @return array
@@ -379,6 +607,26 @@ class WC_Sicoob_Payment_API {
         return array(
             'pix_key' => $gateway->get_option('pix_key'),
             'pix_description' => $gateway->get_option('pix_description')
+        );
+    }
+
+    /**
+     * Get Boleto gateway settings
+     *
+     * @return array
+     */
+    public static function get_boleto_gateway_settings(): array {
+        $gateway = new WC_Sicoob_Boleto_Gateway();
+        
+        return array(
+            'account_number' => $gateway->get_option('account_number'),
+            'contract_number' => $gateway->get_option('contract_number'),
+            'due_days' => $gateway->get_option('due_days', 3),
+            'instruction_1' => $gateway->get_option('instruction_1'),
+            'instruction_2' => $gateway->get_option('instruction_2'),
+            'instruction_3' => $gateway->get_option('instruction_3'),
+            'instruction_4' => $gateway->get_option('instruction_4'),
+            'instruction_5' => $gateway->get_option('instruction_5')
         );
     }
 }
