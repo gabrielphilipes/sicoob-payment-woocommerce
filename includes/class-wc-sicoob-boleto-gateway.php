@@ -32,6 +32,12 @@ class WC_Sicoob_Boleto_Gateway extends WC_Payment_Gateway {
 
         // Save settings
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
+
+        // Add boleto payment block to thank you page
+        add_action('woocommerce_thankyou_' . $this->id, array($this, 'display_boleto_payment_block'));
+
+        // Enqueue boleto scripts and styles
+        add_action('wp_enqueue_scripts', array($this, 'enqueue_boleto_scripts'));
     }
 
     /**
@@ -435,5 +441,139 @@ class WC_Sicoob_Boleto_Gateway extends WC_Payment_Gateway {
 
         // Trigger the email action
         do_action('sicoob_boleto_email_notification', $order, $boleto_data);
+    }
+
+    /**
+     * Enqueue boleto scripts and styles
+     */
+    public function enqueue_boleto_scripts()
+    {
+        // Only load on checkout and thank you pages
+        if (!is_checkout() && !is_wc_endpoint_url('order-received')) {
+            return;
+        }
+
+        // Enqueue boleto CSS
+        wp_enqueue_style(
+            'sicoob-boleto-css',
+            SICOOB_PAYMENT_PLUGIN_URL . 'assets/css/sicoob-boleto.css',
+            array(),
+            SICOOB_PAYMENT_VERSION
+        );
+
+        // Enqueue boleto JS
+        wp_enqueue_script(
+            'sicoob-boleto-js',
+            SICOOB_PAYMENT_PLUGIN_URL . 'assets/js/sicoob-boleto.js',
+            array('jquery'),
+            SICOOB_PAYMENT_VERSION,
+            true
+        );
+
+        // Localize script
+        wp_localize_script('sicoob-boleto-js', 'sicoob_boleto_params', array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('sicoob_boleto_nonce'),
+            'strings' => array(
+                'download_success' => __('Boleto baixado com sucesso!', 'sicoob-payment'),
+                'download_error' => __('Erro ao baixar boleto!', 'sicoob-payment'),
+                'print_success' => __('Boleto enviado para impressão!', 'sicoob-payment'),
+                'print_error' => __('Erro ao imprimir boleto!', 'sicoob-payment'),
+            )
+        ));
+    }
+
+    /**
+     * Display boleto payment block on thank you page
+     *
+     * @param int $order_id Order ID
+     */
+    public function display_boleto_payment_block($order_id)
+    {
+        $order = wc_get_order($order_id);
+
+        if (!$order || $order->get_payment_method() !== $this->id) {
+            return;
+        }
+
+        // Check if boleto data exists
+        $boleto_pdf_url = $order->get_meta('_sicoob_boleto_pdf_url');
+        if (empty($boleto_pdf_url)) {
+            return;
+        }
+
+        // Load template
+        $template_path = plugin_dir_path(dirname(__FILE__)) . 'templates/boleto-payment-block.php';
+
+        if (file_exists($template_path)) {
+            include $template_path;
+        } else {
+            // Fallback template
+            $this->display_boleto_payment_block_fallback($order);
+        }
+    }
+
+    /**
+     * Fallback boleto payment block display
+     *
+     * @param WC_Order $order Order object
+     */
+    private function display_boleto_payment_block_fallback($order)
+    {
+        $boleto_pdf_url = $order->get_meta('_sicoob_boleto_pdf_url');
+        $boleto_valor = $order->get_meta('_sicoob_boleto_valor');
+        $boleto_data_vencimento = $order->get_meta('_sicoob_boleto_data_vencimento');
+
+        if (empty($boleto_pdf_url)) {
+            return;
+        }
+
+        $formatted_value = wc_price($boleto_valor);
+        $formatted_due_date = $boleto_data_vencimento ? date('d/m/Y', strtotime($boleto_data_vencimento)) : '';
+        ?>
+        <div class="sicoob-boleto-payment-block">
+            <div class="sicoob-boleto-header">
+                <h3><?php _e('Pagamento via Boleto', 'sicoob-payment'); ?></h3>
+                <p><?php _e('Visualize e imprima seu boleto bancário para realizar o pagamento', 'sicoob-payment'); ?></p>
+            </div>
+
+            <div class="sicoob-boleto-content">
+                <div class="sicoob-boleto-pdf-container">
+                    <div class="sicoob-boleto-pdf-header">
+                        <h4><?php _e('Boleto Bancário', 'sicoob-payment'); ?></h4>
+                        <div class="sicoob-boleto-info">
+                            <span class="sicoob-boleto-value"><?php echo $formatted_value; ?></span>
+                            <?php if ($formatted_due_date): ?>
+                                <span class="sicoob-boleto-due-date"><?php printf(__('Vence em: %s', 'sicoob-payment'), $formatted_due_date); ?></span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    
+                    <div class="sicoob-boleto-pdf-iframe">
+                        <iframe src="<?php echo esc_url($boleto_pdf_url); ?>" 
+                                width="100%" 
+                                height="600" 
+                                frameborder="0"
+                                title="<?php _e('Boleto Bancário', 'sicoob-payment'); ?>"
+                                id="sicoob-boleto-iframe">
+                        </iframe>
+                    </div>
+                </div>
+
+                <div class="sicoob-boleto-actions">
+                    <a href="<?php echo esc_url($boleto_pdf_url); ?>" 
+                       class="sicoob-boleto-download-btn" 
+                       target="_blank" 
+                       download>
+                        <?php _e('Baixar Boleto', 'sicoob-payment'); ?>
+                    </a>
+                    
+                    <button type="button" class="sicoob-boleto-print-btn" id="sicoob-boleto-print-btn">
+                        <?php _e('Imprimir Boleto', 'sicoob-payment'); ?>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <?php
     }
 }
