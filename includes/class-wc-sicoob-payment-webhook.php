@@ -224,7 +224,7 @@ class WC_Sicoob_Payment_Webhook {
 		// Search for order with matching txid in meta.
 		$order_id = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT post_id FROM {$wpdb->postmeta} 
+				"SELECT order_id FROM {$wpdb->prefix}wc_orders_meta 
              WHERE meta_key = '_sicoob_pix_txid' 
              AND meta_value = %s",
 				$txid
