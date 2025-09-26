@@ -16,52 +16,57 @@
  * @package SicoobPayment
  */
 
-if (!defined('ABSPATH')) {
-    exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
-// Define constantes do plugin
-define('SICOOB_PAYMENT_VERSION', '1.0.0');
-define('SICOOB_PAYMENT_PLUGIN_DIR', plugin_dir_path(__FILE__));
-define('SICOOB_PAYMENT_PLUGIN_URL', plugin_dir_url(__FILE__));
+// Define constantes do plugin.
+define( 'SICOOB_PAYMENT_VERSION', '1.0.0' );
+define( 'SICOOB_PAYMENT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
+define( 'SICOOB_PAYMENT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
-// Verifica se o WooCommerce está ativo
-if (!in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins')))) {
-    add_action('admin_notices', function() {
-        ?>
-        <div class="error">
-            <p><?php esc_html_e('Sicoob Payment requer o WooCommerce ativo para funcionar.', 'sicoob-payment'); ?></p>
-        </div>
-        <?php
-    });
-    return;
+// Verifica se o WooCommerce está ativo.
+if ( ! in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', get_option( 'active_plugins' ) ), true ) ) {
+	add_action(
+		'admin_notices',
+		function () {
+			?>
+		<div class="error">
+			<p><?php esc_html_e( 'Sicoob Payment requer o WooCommerce ativo para funcionar.', 'sicoob-payment' ); ?></p>
+		</div>
+			<?php
+		}
+	);
+	return;
 }
 
-// Declara compatibilidade com o High-Performance Order Storage do WooCommerce
+// Declara compatibilidade com o High-Performance Order Storage do WooCommerce.
 add_action(
-    'before_woocommerce_init',
-    function() {
-        if (class_exists(\Automattic\WooCommerce\Utilities\FeaturesUtil::class)) {
-            \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility('custom_order_tables', __FILE__, true);
-            \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility('cart_checkout_blocks', __FILE__, true);
-        }
-    }
+	'before_woocommerce_init',
+	function () {
+		if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class ) ) {
+			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', __FILE__, true );
+			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', __FILE__, true );
+		}
+	}
 );
 
-if (file_exists(SICOOB_PAYMENT_PLUGIN_DIR . 'vendor/autoload.php')) {
-    require_once SICOOB_PAYMENT_PLUGIN_DIR . 'vendor/autoload.php';
+if ( file_exists( SICOOB_PAYMENT_PLUGIN_DIR . 'vendor/autoload.php' ) ) {
+	require_once SICOOB_PAYMENT_PLUGIN_DIR . 'vendor/autoload.php';
 }
 
-// Inicializa o plugin
+/**
+ * Inicializa o plugin.
+ */
 function sicoob_payment_init() {
-    require_once SICOOB_PAYMENT_PLUGIN_DIR . '/includes/class-wc-sicoob-payment.php';
-    require_once SICOOB_PAYMENT_PLUGIN_DIR . '/includes/class-wc-sicoob-payment-admin.php';
-    require_once SICOOB_PAYMENT_PLUGIN_DIR . '/includes/class-wc-sicoob-payment-api.php';
-    require_once SICOOB_PAYMENT_PLUGIN_DIR . '/includes/class-wc-sicoob-pix-gateway.php';
-    require_once SICOOB_PAYMENT_PLUGIN_DIR . '/includes/class-wc-sicoob-boleto-gateway.php';
-    require_once SICOOB_PAYMENT_PLUGIN_DIR . '/includes/class-wc-sicoob-payment-webhook.php';
+	require_once SICOOB_PAYMENT_PLUGIN_DIR . '/includes/class-wc-sicoob-payment.php';
+	require_once SICOOB_PAYMENT_PLUGIN_DIR . '/includes/class-wc-sicoob-payment-admin.php';
+	require_once SICOOB_PAYMENT_PLUGIN_DIR . '/includes/class-wc-sicoob-payment-api.php';
+	require_once SICOOB_PAYMENT_PLUGIN_DIR . '/includes/class-wc-sicoob-pix-gateway.php';
+	require_once SICOOB_PAYMENT_PLUGIN_DIR . '/includes/class-wc-sicoob-boleto-gateway.php';
+	require_once SICOOB_PAYMENT_PLUGIN_DIR . '/includes/class-wc-sicoob-payment-webhook.php';
 
-    $plugin = WC_Sicoob_Payment::get_instance();
-    $plugin->init();
+	$plugin = WC_Sicoob_Payment::get_instance();
+	$plugin->init();
 }
-add_action('plugins_loaded', 'sicoob_payment_init'); 
+add_action( 'plugins_loaded', 'sicoob_payment_init' );
