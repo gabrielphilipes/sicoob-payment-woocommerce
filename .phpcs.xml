@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<ruleset name="Sicoob Payment">
+    <description>Coding standards for Sicoob Payment plugin</description>
+    
+    <file>includes/</file>
+    <file>sicoob-payment.php</file>
+    
+    <rule ref="WordPress"/>
+    <rule ref="WordPress-Docs"/>
+    <rule ref="WordPress-Extra"/>
+    
+    <exclude-pattern>vendor/</exclude-pattern>
+    <exclude-pattern>node_modules/</exclude-pattern>
+</ruleset>
