@@ -28,6 +28,8 @@ class WC_Sicoob_Payment_Admin {
         add_action('wp_ajax_sicoob_register_webhook', array($this, 'ajax_register_webhook'));
         add_action('wp_ajax_sicoob_unregister_webhook', array($this, 'ajax_unregister_webhook'));
         add_action('wp_ajax_sicoob_check_webhook_status', array($this, 'ajax_check_webhook_status'));
+        add_action('wp_ajax_sicoob_check_payment_status', array($this, 'ajax_check_payment_status'));
+        add_action('wp_ajax_nopriv_sicoob_check_payment_status', array($this, 'ajax_check_payment_status'));
     }
 
     /**
@@ -1554,5 +1556,54 @@ class WC_Sicoob_Payment_Admin {
             </div>
         </div>
         <?php
+    }
+
+    /**
+     * AJAX handler to check payment status
+     */
+    public function ajax_check_payment_status() {
+        // Verify nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'sicoob_pix_nonce')) {
+            wp_die(__('Nonce inválido.', 'sicoob-payment'));
+        }
+
+        // Get order ID from request
+        $order_id = intval($_POST['order_id']);
+        
+        if (!$order_id) {
+            wp_send_json_error(array(
+                'message' => __('ID do pedido inválido.', 'sicoob-payment')
+            ));
+        }
+
+        // Get order
+        $order = wc_get_order($order_id);
+        
+        if (!$order) {
+            wp_send_json_error(array(
+                'message' => __('Pedido não encontrado.', 'sicoob-payment')
+            ));
+        }
+
+        // Check if order is paid
+        $is_paid = $order->is_paid();
+        $status = $order->get_status();
+        
+        // Prepare response
+        $response = array(
+            'is_paid' => $is_paid,
+            'status' => $status,
+            'status_label' => wc_get_order_status_name($status),
+            'order_id' => $order_id
+        );
+
+        // If paid, add success message
+        if ($is_paid) {
+            $response['message'] = __('Pagamento confirmado com sucesso!', 'sicoob-payment');
+        } else {
+            $response['message'] = __('Aguardando confirmação do pagamento...', 'sicoob-payment');
+        }
+
+        wp_send_json_success($response);
     }
 }

@@ -19,6 +19,9 @@ jQuery(document).ready(function ($) {
 
     // Initialize QR code generation
     initQRCodeGeneration();
+
+    // Initialize payment status checking
+    initPaymentStatusChecking();
   }
 
   /**
@@ -201,4 +204,113 @@ jQuery(document).ready(function ($) {
 
   // Handle responsive on load
   handleResponsive();
+
+  /**
+   * Initialize payment status checking
+   */
+  function initPaymentStatusChecking() {
+    var $pixBlock = $(".sicoob-pix-payment-block");
+
+    if ($pixBlock.length) {
+      // Get order ID from URL or data attribute
+      var orderId = getOrderIdFromUrl();
+
+      if (orderId) {
+        // Start checking payment status
+        startPaymentStatusCheck(orderId);
+      }
+    }
+  }
+
+  /**
+   * Get order ID from current URL
+   */
+  function getOrderIdFromUrl() {
+    var urlParams = new URLSearchParams(window.location.search);
+    var orderId = urlParams.get("order");
+
+    if (!orderId) {
+      // Try to get from data attribute
+      var $pixBlock = $(".sicoob-pix-payment-block");
+      if ($pixBlock.length) {
+        orderId = $pixBlock.data("order-id");
+      }
+    }
+
+    return orderId;
+  }
+
+  /**
+   * Start checking payment status periodically
+   */
+  function startPaymentStatusCheck(orderId) {
+    var checkInterval = 5000; // Check every 5 seconds
+    var maxChecks = 120; // Maximum 10 minutes of checking
+    var checkCount = 0;
+
+    var statusCheckInterval = setInterval(function () {
+      checkCount++;
+
+      // Stop checking after max attempts
+      if (checkCount > maxChecks) {
+        clearInterval(statusCheckInterval);
+        return;
+      }
+
+      checkPaymentStatus(orderId, function (isPaid) {
+        if (isPaid) {
+          clearInterval(statusCheckInterval);
+          showSuccessBlock();
+        }
+      });
+    }, checkInterval);
+  }
+
+  /**
+   * Check payment status via AJAX
+   */
+  function checkPaymentStatus(orderId, callback) {
+    $.ajax({
+      url: sicoob_pix_params.ajax_url,
+      type: "POST",
+      data: {
+        action: "sicoob_check_payment_status",
+        order_id: orderId,
+        nonce: sicoob_pix_params.nonce,
+      },
+      success: function (response) {
+        if (response.success && response.data) {
+          var isPaid = response.data.is_paid;
+          callback(isPaid);
+        }
+      },
+      error: function (xhr, status, error) {
+        console.error("Erro ao verificar status do pagamento:", error);
+      },
+    });
+  }
+
+  /**
+   * Show success block when payment is confirmed
+   */
+  function showSuccessBlock() {
+    var $pixBlock = $(".sicoob-pix-payment-block");
+    var $successBlock = $("#sicoob-pix-success-block");
+
+    if ($pixBlock.length && $successBlock.length) {
+      // Hide PIX payment block
+      $pixBlock.fadeOut(500, function () {
+        // Show success block
+        $successBlock.fadeIn(500);
+
+        // Scroll to success block
+        $("html, body").animate(
+          {
+            scrollTop: $successBlock.offset().top - 100,
+          },
+          800
+        );
+      });
+    }
+  }
 });

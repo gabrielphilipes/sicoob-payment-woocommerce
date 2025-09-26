@@ -20,6 +20,10 @@ if (empty($pix_qrcode)) {
     return;
 }
 
+// Check order status - only show PIX if order is pending payment
+$order_status = $order->get_status();
+$is_paid = $order->is_paid();
+
 // Calculate expiration time
 $expiration_time = $pix_criacao ? strtotime($pix_criacao) + $pix_expiracao : time() + 3600;
 $time_remaining = max(0, $expiration_time - time());
@@ -27,7 +31,7 @@ $hours_remaining = floor($time_remaining / 3600);
 $minutes_remaining = floor(($time_remaining % 3600) / 60);
 ?>
 
-<div class="sicoob-pix-payment-block" id="sicoob-pix-payment-block">
+<div class="sicoob-pix-payment-block" id="sicoob-pix-payment-block" style="<?= $is_paid ? 'display: none;' : 'display: block;' ?>" data-order-id="<?php echo esc_attr($order->get_id()); ?>">
     <div class="sicoob-pix-header">
         <h3><?php _e('Pagamento via PIX', 'sicoob-payment'); ?></h3>
         <p><?php _e('Escaneie o QR Code ou copie o código PIX para realizar o pagamento', 'sicoob-payment'); ?></p>
@@ -110,7 +114,7 @@ $minutes_remaining = floor(($time_remaining % 3600) / 60);
 </div>
 
 <!-- Bloco de Sucesso (inicialmente oculto) -->
-<div class="sicoob-pix-success-block" id="sicoob-pix-success-block" style="display: none;">
+<div class="sicoob-pix-success-block" id="sicoob-pix-success-block" style="<?= $is_paid ? 'display: block;' : 'display: none;' ?>">
     <div class="sicoob-pix-success-header">
         <h3><?php _e('Pagamento Recebido!', 'sicoob-payment'); ?></h3>
     </div>

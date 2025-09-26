@@ -9,12 +9,14 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-class WC_Sicoob_Pix_Gateway extends WC_Payment_Gateway {
+class WC_Sicoob_Pix_Gateway extends WC_Payment_Gateway
+{
 
     /**
      * PIX Gateway Constructor
      */
-    public function __construct() {
+    public function __construct()
+    {
         $this->id = 'sicoob_pix';
         $this->icon = '';
         $this->has_fields = false;
@@ -32,18 +34,20 @@ class WC_Sicoob_Pix_Gateway extends WC_Payment_Gateway {
 
         // Save settings
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
-        
+
         // Add PIX payment block to thank you page
         add_action('woocommerce_thankyou_' . $this->id, array($this, 'display_pix_payment_block'));
-        
+
         // Enqueue PIX scripts and styles
         add_action('wp_enqueue_scripts', array($this, 'enqueue_pix_scripts'));
+
     }
 
     /**
      * Initialize form fields for configuration
      */
-    public function init_form_fields() {
+    public function init_form_fields()
+    {
         $this->form_fields = array(
             'enabled' => array(
                 'title' => __('Habilitar/Desabilitar', 'sicoob-payment'),
@@ -95,7 +99,8 @@ class WC_Sicoob_Pix_Gateway extends WC_Payment_Gateway {
      * @param int $order_id Order ID
      * @return array
      */
-    public function process_payment($order_id) {
+    public function process_payment($order_id)
+    {
         $order = wc_get_order($order_id);
 
         if (!$order) {
@@ -165,7 +170,8 @@ class WC_Sicoob_Pix_Gateway extends WC_Payment_Gateway {
      *
      * @return bool
      */
-    public function is_available() {
+    public function is_available()
+    {
         if ($this->enabled === 'no') {
             return false;
         }
@@ -187,15 +193,16 @@ class WC_Sicoob_Pix_Gateway extends WC_Payment_Gateway {
      * @param WC_Order $order Order object
      * @return string
      */
-    private function get_customer_cpf($order) {
+    private function get_customer_cpf($order)
+    {
         // Try to get CPF from billing meta
         $cpf = $order->get_meta('_billing_cpf');
-        
+
         if (empty($cpf)) {
             // Try to get CPF from billing meta with different key
             $cpf = $order->get_meta('billing_cpf');
         }
-        
+
         if (empty($cpf)) {
             // Try to get CPF from customer meta
             $customer_id = $order->get_customer_id();
@@ -203,12 +210,12 @@ class WC_Sicoob_Pix_Gateway extends WC_Payment_Gateway {
                 $cpf = get_user_meta($customer_id, 'billing_cpf', true);
             }
         }
-        
+
         // If still empty, try to extract from billing address
         if (empty($cpf)) {
             $cpf = '00000000000'; // Default fallback
         }
-        
+
         return $cpf;
     }
 
@@ -218,31 +225,33 @@ class WC_Sicoob_Pix_Gateway extends WC_Payment_Gateway {
      * @param WC_Order $order Order object
      * @return string
      */
-    private function get_customer_name($order) {
+    private function get_customer_name($order)
+    {
         $first_name = $order->get_billing_first_name();
         $last_name = $order->get_billing_last_name();
-        
+
         $name = trim($first_name . ' ' . $last_name);
-        
+
         // If billing name is empty, try shipping name
         if (empty($name)) {
             $first_name = $order->get_shipping_first_name();
             $last_name = $order->get_shipping_last_name();
             $name = trim($first_name . ' ' . $last_name);
         }
-        
+
         // If still empty, use customer display name
         if (empty($name)) {
             $name = $order->get_customer_note() ?: __('Cliente', 'sicoob-payment');
         }
-        
+
         return $name;
     }
 
     /**
      * Enqueue PIX scripts and styles
      */
-    public function enqueue_pix_scripts() {
+    public function enqueue_pix_scripts()
+    {
         // Only load on checkout and thank you pages
         if (!is_checkout() && !is_wc_endpoint_url('order-received')) {
             return;
@@ -291,7 +300,8 @@ class WC_Sicoob_Pix_Gateway extends WC_Payment_Gateway {
      *
      * @param int $order_id Order ID
      */
-    public function display_pix_payment_block($order_id) {
+    public function display_pix_payment_block($order_id)
+    {
         $order = wc_get_order($order_id);
 
         if (!$order || $order->get_payment_method() !== $this->id) {
@@ -306,7 +316,7 @@ class WC_Sicoob_Pix_Gateway extends WC_Payment_Gateway {
 
         // Load template
         $template_path = plugin_dir_path(dirname(__FILE__)) . 'templates/pix-payment-block.php';
-        
+
         if (file_exists($template_path)) {
             include $template_path;
         } else {
@@ -320,10 +330,11 @@ class WC_Sicoob_Pix_Gateway extends WC_Payment_Gateway {
      *
      * @param WC_Order $order Order object
      */
-    private function display_pix_payment_block_fallback($order) {
+    private function display_pix_payment_block_fallback($order)
+    {
         $pix_qrcode = $order->get_meta('_sicoob_pix_qrcode');
         $pix_txid = $order->get_meta('_sicoob_pix_txid');
-        
+
         if (empty($pix_qrcode)) {
             return;
         }
@@ -346,18 +357,14 @@ class WC_Sicoob_Pix_Gateway extends WC_Payment_Gateway {
                     </div>
 
                     <div class="sicoob-pix-code-container">
-                        <input type="text" 
-                               class="sicoob-pix-code-input" 
-                               value="<?php echo esc_attr($pix_qrcode); ?>" 
-                               readonly>
+                        <input type="text" class="sicoob-pix-code-input" value="<?php echo esc_attr($pix_qrcode); ?>" readonly>
                         <button type="button" class="sicoob-pix-copy-btn">
                             <?php _e('Copiar', 'sicoob-payment'); ?>
                         </button>
                     </div>
 
-                    <textarea class="sicoob-pix-code-textarea" 
-                              readonly 
-                              style="display: none;"><?php echo esc_textarea($pix_qrcode); ?></textarea>
+                    <textarea class="sicoob-pix-code-textarea" readonly
+                        style="display: none;"><?php echo esc_textarea($pix_qrcode); ?></textarea>
                 </div>
 
                 <div class="sicoob-pix-right">
